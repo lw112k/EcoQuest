@@ -1,7 +1,7 @@
 <nav class="main-nav">
     <div class="nav-brand">
         <a href="index.php">
-            <img src="../assets/images/logo.png" alt="EcoQuest Logo" class="logo">
+            <img src="../assets/images/logo.PNG" alt="EcoQuest Logo" class="logo">
             <span class="app-title">EcoQuest</span>
         </a>
     </div>
