@@ -1,4 +1,6 @@
-/* --- Global Styles for Modern Look --- */
+/* ====================================
+   GLOBAL STYLES (EcoQuest Theme)
+   ==================================== */
 body {
     font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Use a modern font-family stack */
     background-color: #FAFAF0; /* Light Cream background */
@@ -8,156 +10,9 @@ body {
     box-sizing: border-box;
 }
 
-/* --- Hero Section: More Impactful & Clean --- */
-.hero {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    /* Use less padding on sides for full width feel, but keep vertical spacing */
-    padding: 80px 8%;
-    background: linear-gradient(135deg, #FAFAF0 0%, #E0EAE3 100%); /* Subtle gradient for depth */
-    gap: 60px;
-    min-height: 70vh; /* Make it more prominent on the page */
-}
-
-.hero-left {
-    flex: 1;
-    max-width: 55%; /* Give more space to the text */
-}
-
-.hero-slogan {
-    font-size: 3.2rem; /* Bigger, more impactful font */
-    color: #1D4C43; /* Primary Forest Green */
-    margin-bottom: 15px;
-    line-height: 1.1;
-    font-weight: 800; /* Extra bold for punch */
-}
-
-.hero-slogan span {
-    color: #71B48D; /* Use Mint Green for an accent word */
-}
-
-.hero-description {
-    font-size: 1.3rem;
-    color: #2C3E50;
-    margin-bottom: 40px;
-    line-height: 1.5;
-    opacity: 0.85;
-}
-
-.btn-signup {
-    display: inline-block;
-    background: #71B48D; /* Secondary Mint Green */
-    color: #1D4C43; /* Text color contrasts with button */
-    padding: 14px 32px;
-    font-size: 1.1rem;
-    border-radius: 50px; /* Pill shape is modern */
-    text-decoration: none;
-    font-weight: 700;
-    transition: all 0.3s ease-in-out;
-    border: 2px solid #71B48D;
-    box-shadow: 0 4px 15px rgba(113, 180, 141, 0.4); /* Subtle glow */
-}
-
-.btn-signup:hover {
-    background: #1D4C43; /* Darker on hover */
-    color: #FAFAF0;
-    border-color: #1D4C43;
-    transform: translateY(-2px); /* Lift effect */
-    box-shadow: 0 6px 20px rgba(29, 76, 67, 0.3);
-}
-
-.login-link {
-    margin-top: 20px;
-    font-size: 1rem;
-    color: #2C3E50;
-    opacity: 0.7;
-}
-
-.login-link a {
-    color: #1D4C43;
-    font-weight: 600;
-    text-decoration: none;
-    border-bottom: 2px solid transparent; /* Prepare for hover effect */
-    transition: border-bottom 0.2s;
-}
-
-.login-link a:hover {
-    border-bottom: 2px solid #71B48D; /* Underline effect using border */
-    color: #1D4C43;
-}
-
-.hero-right {
-    flex: 1;
-    text-align: center;
-    /* Use a fixed height/width ratio for the image container */
-}
-
-.hero-right img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 16px;
-    object-fit: cover;
-    /* More pronounced, but softer shadow */
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease-in-out;
-}
-
-.hero-right img:hover {
-    transform: scale(1.02); /* Make the image pop a bit on hover */
-}
-
-/* --- Responsive Layout (Updated) --- */
-@media (max-width: 1024px) {
-    .hero {
-        padding: 60px 5%;
-        gap: 30px;
-    }
-    .hero-slogan {
-        font-size: 2.5rem;
-    }
-    .hero-description {
-        font-size: 1.2rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .hero {
-        flex-direction: column;
-        text-align: center;
-        padding: 50px 5%;
-        min-height: unset; /* Don't force height on small screens */
-    }
-    .hero-left {
-        max-width: 100%;
-    }
-    .hero-slogan {
-        font-size: 2.2rem;
-    }
-    .hero-right {
-        margin-top: 30px;
-    }
-    .btn-signup {
-        width: auto; /* Revert to auto width, unless you want it full screen */
-        min-width: 250px; /* Set a minimum width instead */
-    }
-}
-
-@media (max-width: 480px) {
-    .hero-slogan {
-        font-size: 1.8rem;
-    }
-    .hero-description {
-        font-size: 1rem;
-    }
-    .btn-signup {
-        padding: 12px 25px;
-        font-size: 1rem;
-        min-width: 100%; /* Full width button on smallest screens */
-    }
-}
-
-/* --- Navigation Bar (Desktop View: PC Menu) --- */
+/* ====================================
+   NAVIGATION BAR (PC Menu)
+   ==================================== */
 
 .main-nav {
     display: flex;
@@ -176,7 +31,6 @@ body {
 .nav-brand {
     display: flex;
     align-items: center;
-    text-decoration: none;
 }
 
 .nav-brand a {
@@ -214,7 +68,7 @@ body {
     font-weight: 500;
     font-size: 1rem;
     padding: 5px 0;
-    border-bottom: 3px solid transparent; /* Prepare for hover effect */
+    border-bottom: 3px solid transparent;
     transition: all 0.3s ease;
 }
 
@@ -243,8 +97,6 @@ body {
 }
 
 .nav-btn-signup {
-    /* Reuse the btn-signup style from the Hero section for consistency */
-    display: inline-block;
     background: #71B48D;
     color: #1D4C43;
     padding: 8px 20px;
@@ -260,7 +112,362 @@ body {
     color: #FAFAF0;
 }
 
-/* Hide the mobile toggle button on PC */
+/* Hide the mobile toggle button on PC (shown via media query later) */
 .nav-toggle {
     display: none;
+}
+
+
+/* ====================================
+   HERO SECTION (Curved Design Update)
+   ==================================== */
+
+.hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 80px 8%;
+    background-color: #FAFAF0; /* Light Cream background */
+    gap: 60px;
+    min-height: 70vh;
+    position: relative;
+    overflow: hidden;
+}
+
+/* New: Gradient Overlay for the Right Side (Fade to White) */
+.hero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 60%;
+    height: 100%;
+    /* Gradient from transparent (left) to light cream (right) */
+    background: linear-gradient(to right, rgba(250, 250, 240, 0) 0%, rgba(250, 250, 240, 0.8) 20%, #FAFAF0 80%);
+    z-index: 1;
+}
+
+.hero-left {
+    flex: 1;
+    max-width: 55%;
+    z-index: 2;
+    position: relative;
+}
+
+.hero-slogan {
+    font-size: 3.2rem;
+    color: #1D4C43;
+    margin-bottom: 15px;
+    line-height: 1.1;
+    font-weight: 800;
+}
+
+.hero-slogan span {
+    color: #71B48D;
+}
+
+.hero-description {
+    font-size: 1.3rem;
+    color: #2C3E50;
+    margin-bottom: 40px;
+    line-height: 1.5;
+    opacity: 0.85;
+}
+
+/* Sign up button styles are kept the same as .nav-btn-signup for consistency */
+.btn-signup {
+    display: inline-block;
+    background: #71B48D;
+    color: #1D4C43;
+    padding: 14px 32px;
+    font-size: 1.1rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.3s ease-in-out;
+    border: 2px solid #71B48D;
+    box-shadow: 0 4px 15px rgba(113, 180, 141, 0.4);
+}
+
+.btn-signup:hover {
+    background: #1D4C43;
+    color: #FAFAF0;
+    border-color: #1D4C43;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(29, 76, 67, 0.3);
+}
+
+.login-link {
+    margin-top: 20px;
+    font-size: 1rem;
+    color: #2C3E50;
+    opacity: 0.7;
+}
+
+.login-link a {
+    color: #1D4C43;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: border-bottom 0.2s;
+}
+
+.login-link a:hover {
+    border-bottom: 2px solid #71B48D;
+    color: #1D4C43;
+}
+
+.hero-right {
+    flex: 1;
+    text-align: right;
+    z-index: 2;
+    position: relative;
+    margin-right: 0;
+
+    /* The magic for the curved shape! */
+    /* You might need to adjust the clip-path slightly if the larger size looks awkward */
+    clip-path: ellipse(110% 80% at 90% 50%);
+    /* REMOVED: background-color: #71B48D; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Increased height for a bigger visual impact */
+    min-height: 550px;
+}
+
+.hero-right img {
+    max-width: 100%;
+    /* Set height to auto to scale with the width, or use 100% to fill the container
+       Since we're using object-fit: cover, 100% height is better to ensure it covers the increased min-height */
+    height: 100%;
+    object-fit: cover; /* Ensures the image fills the clipped area without stretching */
+    border-radius: 0;
+    box-shadow: none;
+    transition: none;
+}
+
+
+/* ====================================
+   LOGIN & REGISTER PAGE STYLES (Auth Pages)
+   ==================================== */
+
+.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 85vh;
+    padding: 40px 20px;
+    background-color: #FAFAF0;
+}
+
+.login-container {
+    max-width: 420px;
+    width: 100%;
+}
+
+.auth-card {
+    background: #FFFFFF;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.auth-title {
+    font-size: 1.8rem;
+    color: #1D4C43;
+    margin-bottom: 10px;
+}
+
+.auth-subtitle {
+    font-size: 1rem;
+    color: #2C3E50;
+    margin-bottom: 30px;
+    opacity: 0.8;
+}
+
+/* Form Styles */
+.auth-form {
+    text-align: left;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2C3E50;
+    font-size: 0.95rem;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #DCDCDC;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+    border-color: #71B48D;
+    outline: none;
+    box-shadow: 0 0 5px rgba(113, 180, 141, 0.5);
+}
+
+/* Primary Button for Auth */
+.btn-primary-auth {
+    width: 100%;
+    background: #1D4C43;
+    color: #FAFAF0;
+    padding: 12px 20px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.3s;
+    margin-top: 10px;
+}
+
+.btn-primary-auth:hover {
+    background: #71B48D;
+    color: #1D4C43;
+}
+
+/* Footer Links */
+.auth-footer {
+    margin-top: 30px;
+    font-size: 0.95rem;
+    color: #2C3E50;
+}
+
+.auth-footer a, .auth-footer-small a {
+    color: #71B48D;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s;
+}
+
+.auth-footer a:hover, .auth-footer-small a:hover {
+    color: #1D4C43;
+    text-decoration: underline;
+}
+
+.auth-footer-small {
+    margin-top: 10px;
+    font-size: 0.85rem;
+}
+
+
+/* ====================================
+   RESPONSIVE LAYOUT
+   ==================================== */
+
+@media (max-width: 1024px) {
+    .hero {
+        padding: 60px 5%;
+        gap: 30px;
+    }
+    .hero-slogan {
+        font-size: 2.5rem;
+    }
+    .hero-description {
+        font-size: 1.2rem;
+    }
+
+    .main-nav {
+        padding: 15px 5%;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Mobile Navigation */
+    .nav-links {
+        /* This is for the JS toggle - initial state is hidden */
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        position: absolute;
+        top: 65px; /* Adjust based on header height */
+        left: 0;
+        background-color: #FAFAF0;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+        padding: 10px 0;
+    }
+
+    .nav-links.is-open {
+        display: flex; /* Shown when JS toggles the class */
+    }
+
+    .nav-links li {
+        margin: 0;
+        border-bottom: 1px solid rgba(29, 76, 67, 0.1);
+    }
+
+    .nav-links a {
+        display: block;
+        padding: 15px 5%;
+        border-bottom: none;
+    }
+
+    .nav-auth {
+        display: none; /* Hide auth buttons in nav on mobile, maybe move them to the top of the mobile menu if needed */
+    }
+
+    .nav-toggle {
+        display: block; /* Show the burger menu button */
+        background: none;
+        border: none;
+        cursor: pointer;
+    }
+
+    /* Hero Section Mobile Overrides */
+    .hero {
+        flex-direction: column;
+        text-align: center;
+        padding: 50px 5%;
+        min-height: unset;
+    }
+    .hero::after {
+        background: none; /* Remove gradient for mobile */
+        width: 0;
+    }
+    .hero-left {
+        max-width: 100%;
+    }
+    .hero-slogan {
+        font-size: 2.2rem;
+    }
+    .hero-right {
+        margin-top: 30px;
+        margin-right: 0;
+        clip-path: none; /* Remove clip-path on mobile */
+        min-height: 250px; /* Adjusted height for mobile image */
+    }
+
+    .hero-right img {
+        border-radius: 12px; /* Re-add rounded corners for mobile */
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15); /* Re-add shadow */
+    }
+    .btn-signup {
+        min-width: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-slogan {
+        font-size: 1.8rem;
+    }
+    .hero-description {
+        font-size: 1rem;
+    }
+    .btn-signup {
+        padding: 12px 25px;
+        font-size: 1rem;
+        min-width: 100%;
+    }
 }
