@@ -222,25 +222,21 @@ body {
     text-align: right;
     z-index: 2;
     position: relative;
-    margin-right: 0;
+    margin-right: 0; /* Ensures the curve is right */
 
     /* The magic for the curved shape! */
-    /* You might need to adjust the clip-path slightly if the larger size looks awkward */
     clip-path: ellipse(110% 80% at 90% 50%);
-    /* REMOVED: background-color: #71B48D; */
+    /* Removed background-color: #71B48D; */
     display: flex;
     justify-content: center;
     align-items: center;
-    /* Increased height for a bigger visual impact */
-    min-height: 550px;
+    min-height: 550px; /* Bigger image size */
 }
 
 .hero-right img {
     max-width: 100%;
-    /* Set height to auto to scale with the width, or use 100% to fill the container
-       Since we're using object-fit: cover, 100% height is better to ensure it covers the increased min-height */
     height: 100%;
-    object-fit: cover; /* Ensures the image fills the clipped area without stretching */
+    object-fit: cover;
     border-radius: 0;
     box-shadow: none;
     transition: none;
@@ -364,6 +360,213 @@ body {
 
 
 /* ====================================
+   QUESTS PAGE STYLES (Public/Student)
+   ==================================== */
+
+.quests-page {
+    padding: 40px 8%;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-title {
+    font-size: 2.5rem;
+    color: #1D4C43;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.page-subtitle {
+    font-size: 1.1rem;
+    color: #2C3E50;
+    margin-bottom: 30px;
+    opacity: 0.8;
+}
+
+/* Controls (Search/Filter) */
+.quest-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.quest-controls input,
+.quest-controls select {
+    padding: 10px 15px;
+    border: 1px solid #DCDCDC;
+    border-radius: 8px;
+    font-size: 1rem;
+    max-width: 300px; /* Limit input width */
+}
+
+.quest-controls .search-bar input {
+    width: 300px;
+}
+
+.quest-controls .filter-dropdown select {
+    width: 250px;
+}
+
+/* Quest Grid */
+.quest-grid {
+    display: grid;
+    /* Uses auto-fill for flexibility, cards should be at least 300px wide */
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+/* Quest Card */
+.quest-card {
+    background: #FFFFFF;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s, box-shadow 0.3s;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 220px; /* Ensures card consistency */
+    border-left: 5px solid #71B48D; /* Default border color (Mint Green) */
+}
+
+.quest-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.quest-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.quest-theme {
+    background-color: #E0EAE3;
+    color: #1D4C43;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.quest-points {
+    color: #FF9900; /* Yellow/Orange for points */
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.quest-title {
+    font-size: 1.4rem;
+    color: #1D4C43;
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.quest-desc {
+    font-size: 0.95rem;
+    color: #2C3E50;
+    opacity: 0.8;
+    margin-bottom: 20px;
+    flex-grow: 1; /* Pushes the footer down */
+}
+
+.quest-footer {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 15px;
+    border-top: 1px solid #F0F0F0;
+    padding-top: 15px;
+}
+
+.quest-difficulty {
+    font-size: 0.9rem;
+    color: #71B48D;
+    font-weight: 600;
+}
+
+.quest-status {
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+/* --- Dynamic Status Styling --- */
+
+/* Active Quest */
+.status-active {
+    border-left-color: #71B48D;
+}
+.status-active .quest-status {
+    background-color: #E0EAE3;
+    color: #1D4C43;
+}
+
+/* Completed Quest */
+.status-completed {
+    border-left-color: #1D4C43;
+}
+.status-completed .quest-status {
+    background-color: #D3EADD;
+    color: #1D4C43;
+}
+
+/* Pending Review Quest */
+.status-pending-review {
+    border-left-color: #FF9900;
+}
+.status-pending-review .quest-status {
+    background-color: #FFF0D9;
+    color: #FF9900;
+}
+
+/* Action Buttons/Spans */
+.btn-submit {
+    margin-left: auto; /* Pushes button to the right */
+    background: #1D4C43;
+    color: #FAFAF0;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.3s;
+}
+
+.btn-submit:hover {
+    background: #71B48D;
+    color: #1D4C43;
+}
+
+.btn-pending,
+.btn-completed {
+    margin-left: auto;
+    padding: 8px 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 6px;
+    text-align: center;
+}
+
+.btn-pending {
+    background: #FF9900;
+    color: white;
+}
+.btn-completed {
+    background: #71B48D;
+    color: #1D4C43;
+}
+
+
+/* ====================================
    RESPONSIVE LAYOUT
    ==================================== */
 
@@ -415,7 +618,7 @@ body {
     }
 
     .nav-auth {
-        display: none; /* Hide auth buttons in nav on mobile, maybe move them to the top of the mobile menu if needed */
+        display: none; /* Hide auth buttons in nav on mobile */
     }
 
     .nav-toggle {
@@ -455,6 +658,26 @@ body {
     }
     .btn-signup {
         min-width: 250px;
+    }
+
+    /* Quest Page Mobile Overrides */
+    .quests-page {
+        padding: 30px 5%;
+    }
+    .quest-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .quest-controls input,
+    .quest-controls select {
+        max-width: 100%;
+        width: 100%;
+    }
+    .quest-grid {
+        grid-template-columns: 1fr; /* Stack cards vertically on small screens */
+    }
+    .quest-card {
+        min-height: unset; /* Remove fixed height on small screens */
     }
 }
 
