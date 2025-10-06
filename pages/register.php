@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register</title>
+    <!-- Removed local <style> block, relying on updated global style.css and inline styles for button centering -->
 </head>
 <body>
     <?php
@@ -173,10 +174,13 @@
                             placeholder="Type your password again">
                 </div>
 
-                <button type="submit" class="btn-submit">Register & Start Questing</button>
+                <!-- Centering wrapper for the button -->
+                <div class="form-button-container" style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn-submit" style="display: block; margin: 0 auto;">Register</button>
+                </div>
             </form>
 
-            <div class="auth-footer">
+            <div class="auth-footer" style="text-align: center;">
                 <p>Already have an account?</p>
                 <a href="login.php" class="auth-link">Log In Here</a>
             </div>

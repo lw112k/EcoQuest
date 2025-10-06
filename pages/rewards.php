@@ -1,60 +1,81 @@
-<?php
-// pages/rewards.php
-session_start();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rewards Marketplace</title>
+</head>
+<body>
+    <?php
+    // pages/rewards.php
+    session_start();
 
-include("../includes/header.php");
-include("../includes/navigation.php");
+    // --- DB Connection and Dependencies ---
+    // Ensure you have a working connection in db.php
+    include("../config/db.php"); 
+    include("../includes/header.php");
+    include("../includes/navigation.php");
 
-// Determine if the user is a logged-in student (only students can redeem)
-$is_student = (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'student');
-$user_points = $is_student ? 850 : 0; // Simulated points for testing
+    $db_error = '';
+    $user_points = 0;
+    $rewards = [];
+    $is_db_connected = isset($conn) && !$conn->connect_error;
 
-// --- DATABASE SIMULATION: Placeholder Rewards Data ---
-// In a real application, this array will be fetched from a 'rewards' database table.
-$rewards = [
-        [
-                'id' => 1,
-                'name' => 'bilabila Mart Voucher (RM10)',
-                'points_cost' => 500,
-                'category' => 'Food & Drink',
-                'stock' => 50,
-                'image_url' => 'https://placehold.co/400x250/1D4C43/FAFAF0?text=Voucher', // Placeholder image
-                'desc' => 'Your daily dose of snack, confirm can get energy to study!',
-        ],
-        [
-                'id' => 2,
-                'name' => 'EcoQuest Tumbler',
-                'points_cost' => 1200,
-                'category' => 'Merchandise',
-                'stock' => 15,
-                'image_url' => 'https://placehold.co/400x250/71B48D/1D4C43?text=Tumbler',
-                'desc' => 'The official tumbler for plastic-free heroes. Looks cool, seriously.',
-        ],
-        [
-                'id' => 3,
-                'name' => 'ICN Ticket (10%)',
-                'points_cost' => 200,
-                'category' => 'Experience',
-                'stock' => 100,
-                'image_url' => 'https://placehold.co/400x250/2C3E50/FAFAF0?text=Event',
-                'desc' => 'Get a 10% discount of ICN ticket',
-        ],
-        [
-                'id' => 4,
-                'name' => 'Plant A Tree',
-                'points_cost' => 5000,
-                'category' => 'Plant',
-                'stock' => 5,
-                'image_url' => 'https://placehold.co/400x250/FF9900/FAFAF0?text=Tree',
-                'desc' => 'For those who really commit to saving the planet. Big, expensive reward.',
-        ]
-];
-?>
+    // Determine if the user is a logged-in student (only students can redeem)
+    $is_student = (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'student' && isset($_SESSION['user_id']));
+    $current_user_id = $_SESSION['user_id'] ?? null;
+
+    if (!$is_db_connected) {
+        $db_error = 'Error: Database connection failed. Cannot load data.';
+    } else {
+        
+        // 1. FETCH USER POINTS (if logged in as student)
+        if ($is_student) {
+            // Using prepared statement for security
+            $stmt = $conn->prepare("SELECT total_points FROM users WHERE user_id = ?");
+            if ($stmt) {
+                $stmt->bind_param("i", $current_user_id);
+                if ($stmt->execute()) {
+                    $result = $stmt->get_result();
+                    if ($user_data = $result->fetch_assoc()) {
+                        $user_points = (int) $user_data['total_points'];
+                    }
+                } else {
+                    $db_error = 'Could not fetch user points: ' . $stmt->error;
+                }
+                $stmt->close();
+            } else {
+                $db_error = 'User points query preparation failed: ' . $conn->error;
+            }
+        }
+        
+        // 2. FETCH ALL REWARDS
+        // FIX: Assumes 'reward_id', 'image_url', and 'description' columns now exist in the rewards table.
+        $sql = "SELECT reward_id AS id, name, points_cost, category, stock, image_url, description 
+                FROM rewards 
+                ORDER BY points_cost ASC"; // Default sort low to high
+        
+        if ($result = $conn->query($sql)) {
+            while ($row = $result->fetch_assoc()) {
+                // Rename 'description' to 'desc' for compatibility with existing HTML loop
+                $row['desc'] = $row['description'];
+                $rewards[] = $row;
+            }
+            $result->free();
+        } else {
+            $db_error = 'Could not fetch rewards: ' . $conn->error;
+        }
+    }
+    ?>
 
     <main class="rewards-page">
         <div class="container">
             <h1 class="page-title">Rewards Marketplace! 🎁</h1>
             <p class="page-subtitle">Spend your hard-earned points on these cool rewards. Better be fast, limited stock only!</p>
+
+            <?php if ($db_error): ?>
+                <div class="message error-error"><?php echo $db_error; ?></div>
+            <?php endif; ?>
 
             <?php if ($is_student): ?>
                 <div class="user-points-summary">
@@ -94,18 +115,21 @@ $rewards = [
                     <?php
                     $can_redeem = $is_student && ($user_points >= $reward['points_cost']) && ($reward['stock'] > 0);
                     $is_out_of_stock = $reward['stock'] == 0;
+                    
+                    // Fallback URL if image_url is empty
+                    $image_url = !empty($reward['image_url']) ? htmlspecialchars($reward['image_url']) : 'https://placehold.co/400x250/2C3E50/FAFAF0?text=Reward';
                     ?>
                     <div class="reward-card <?php echo $is_out_of_stock ? 'out-of-stock' : ''; ?>">
                         <div class="reward-image-container">
-                            <img src="<?php echo $reward['image_url']; ?>" alt="<?php echo $reward['name']; ?>"
-                                 onerror="this.onerror=null;this.src='https://placehold.co/400x250/2C3E50/FAFAF0?text=Reward';" class="reward-image">
+                            <img src="<?php echo $image_url; ?>" alt="<?php echo htmlspecialchars($reward['name']); ?>"
+                                onerror="this.onerror=null;this.src='https://placehold.co/400x250/2C3E50/FAFAF0?text=Reward';" class="reward-image">
                             <?php if ($is_out_of_stock): ?>
                                 <span class="stock-overlay">SOLD OUT</span>
                             <?php endif; ?>
                         </div>
                         <div class="reward-content">
-                            <h3 class="reward-title"><?php echo $reward['name']; ?></h3>
-                            <p class="reward-desc"><?php echo $reward['desc']; ?></p>
+                            <h3 class="reward-title"><?php echo htmlspecialchars($reward['name']); ?></h3>
+                            <p class="reward-desc"><?php echo htmlspecialchars($reward['desc']); ?></p>
                             <div class="reward-footer">
                                 <span class="reward-cost"><?php echo number_format($reward['points_cost']); ?> PTS</span>
 
@@ -126,7 +150,7 @@ $rewards = [
                     </div>
                 <?php endforeach; ?>
 
-                <?php if (empty($rewards)): ?>
+                <?php if (empty($rewards) && !$db_error): ?>
                     <p class="no-rewards">Aiyo, no rewards available right now. Tell the admin to add some!</p>
                 <?php endif; ?>
             </div>

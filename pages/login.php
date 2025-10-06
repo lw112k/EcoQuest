@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <!-- Removed local <style> block, assuming global style.css is handling centering now -->
 </head>
 <body>
     <?php
@@ -127,10 +128,13 @@
                             placeholder="Your secret eco-password">
                 </div>
 
-                <button type="submit" class="btn-submit">Login</button>
+                <!-- NEW: Wrap button in container for centering -->
+                <div class="form-button-container" style="text-align: center; margin-top: 20px;">
+                    <button type="submit" class="btn-submit" style="display: block; margin: 0 auto;">Login</button>
+                </div>
             </form>
 
-            <div class="auth-footer">
+            <div class="auth-footer" style="text-align: center;">
                 <p>Don't have an account?</p>
                 <a href="register.php" class="auth-link">Register New Account</a>
             </div>

@@ -789,9 +789,9 @@ body {
     color: #FF9900;
 }
 
-/* Action Buttons/Spans */
+/* Action Buttons/Spans (Updated for Centering) */
 .btn-submit {
-    margin-left: auto; /* Pushes button to the right */
+    /* margin-left: auto; <--- REMOVE THIS LINE for centering */
     background: #1D4C43;
     color: #FAFAF0;
     padding: 8px 15px;
@@ -806,6 +806,7 @@ body {
     background: #71B48D;
     color: #1D4C43;
 }
+
 
 .btn-pending,
 .btn-completed {
