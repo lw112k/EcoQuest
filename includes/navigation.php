@@ -64,7 +64,9 @@ $app_title = "EcoQuest";
     <div class="nav-auth">
         <?php if ($is_logged_in): ?>
             <!-- Logout Button for all logged-in roles -->
-            <span class="user-info">Hello, <?php echo htmlspecialchars($_SESSION['username'] ?? 'User'); ?>!</span>
+            <a href="profile.php" class="nav-btn-profile">
+                <i class="fas fa-user-circle"></i> Profile
+            </a>
             <a href="logout.php" class="nav-btn-signup">Logout</a>
         <?php else: ?>
             <!-- Login/Register for Guests -->
