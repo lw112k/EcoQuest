@@ -1,6 +1,53 @@
 /* ====================================
    GLOBAL STYLES (EcoQuest Theme)
    ==================================== */
+/* Design tokens */
+:root {
+    /* Colors */
+    --color-primary: #1D4C43;         /* Forest Green */
+    --color-secondary: #71B48D;       /* Mint Green */
+    --color-accent: #38A169;          /* Accent Green for highlights */
+    --color-background: #FAFAF0;      /* Light Cream */
+    --color-text: #2C3E50;            /* Base text */
+    --color-light-text: #4A5568;      /* Secondary text */
+    --color-error: #E53E3E;           /* Error red */
+
+    /* Spacing scale */
+    --spacing-xs: 6px;
+    --spacing-sm: 10px;
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --spacing-xl: 30px;
+    --spacing-xxl: 40px;
+
+    /* Radii */
+    --border-radius: 12px;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Global box-sizing */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Focus-visible outline for accessibility */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--color-secondary);
+    outline-offset: 2px;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
 body {
     font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Use a modern font-family stack */
     background-color: #FAFAF0; /* Light Cream background */
@@ -319,7 +366,11 @@ body {
 }
 
 /* Form Styles */
+/* Single source of truth for auth-form */
 .auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
     text-align: left;
 }
 
@@ -410,23 +461,24 @@ body {
 }
 
 /* --- New styles for side-by-side Save/Cancel buttons on the Edit/Auth pages --- */
+/* Form submit row (shared) */
 .form-submit {
     display: flex;
-    gap: 15px; /* Space between the two buttons */
-    margin-top: 25px; /* Add some space above the button row */
+    justify-content: center; /* Center by default */
+    gap: 15px;
+    margin-top: 25px;
+    margin-bottom: 20px;
 }
 
 .form-submit .btn-submit,
 .form-submit .btn-secondary {
-    width: 50%; /* Make them share the horizontal width equally */
-    display: block; /* Ensure button and link act as blocks */
-    text-align: center; /* Center the text in the link (Cancel) */
-    
-    /* Force consistent padding for identical height */
-    padding: 10px 15px; 
-    font-size: 1.1rem; 
+    min-width: 160px;
+    display: block;
+    text-align: center;
+    padding: 10px 15px;
+    font-size: 1.1rem;
     font-weight: 700;
-    margin-top: 0; /* Clear any previous margin-top */
+    margin-top: 0;
     transition: background 0.3s;
 }
 
@@ -1644,6 +1696,18 @@ body {
     text-align: center; /* Center the top elements */
 }
 
+/* New: Responsive two-column grid inside profile card */
+.profile-grid {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: var(--spacing-xl);
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .profile-grid { grid-template-columns: 1fr; gap: var(--spacing-lg); }
+}
+
 /* --- Header Section --- */
 .profile-header-simple {
     margin-bottom: var(--spacing-lg);
@@ -1674,6 +1738,11 @@ body {
     font-size: 0.85rem;
 }
 
+/* Role-specific badge colors for the profile chip */
+.profile-role-simple.role-student { background-color: #71B48D; color: #0F2F29; }
+.profile-role-simple.role-moderator { background-color: #FF9900; color: #2C3E50; }
+.profile-role-simple.role-admin { background-color: #2C3E50; color: #FAFAF0; }
+
 /* --- Points Highlight --- */
 .points-highlight {
     background-color: var(--color-background); /* Light background for points */
@@ -1696,6 +1765,15 @@ body {
     font-weight: 900;
     color: var(--color-accent); /* Green accent */
     line-height: 1.2;
+}
+
+/* New: subtle points label styling */
+.points-highlight .points-label {
+    margin-top: 4px;
+    color: var(--color-light-text);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 0.8rem;
 }
 
 /* --- Details List --- */
@@ -1740,7 +1818,11 @@ body {
     border-top: 1px solid #f0f0f0;
     display: flex;
     justify-content: center;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
+}
+
+.profile-actions-footer-simple a {
+    min-width: 160px;
 }
 
 /* Mobile Adjustments */
@@ -1818,8 +1900,9 @@ body {
     transform: translateY(-1px);
 }
 
+/* btn-secondary (deduplicated) */
 .btn-secondary {
-    background-color: #E2E8F0; /* Light Grey */
+    background-color: #E2E8F0;
     color: #4A5568;
     padding: 10px 20px;
     border: 1px solid #CBD5E0;
@@ -1827,7 +1910,7 @@ body {
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: background-color 0.3s, color 0.3s;
     text-align: center;
     display: inline-block;
     text-decoration: none;
@@ -1835,6 +1918,7 @@ body {
 
 .btn-secondary:hover {
     background-color: #CBD5E0;
+    color: var(--color-text);
 }
 
 .btn-primary:disabled, .btn-disabled {
@@ -1845,25 +1929,7 @@ body {
 }
 
 /* Secondary button style for 'Back' links, etc. */
-.btn-secondary {
-    background-color: #E2E8F0; /* Light Grey (using the new secondary background) */
-    color: #4A5568;
-    padding: 10px 20px; /* Slightly smaller for secondary actions */
-    border: 1px solid #CBD5E0;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
-    text-decoration: none;
-    display: inline-block;
-    text-align: center;
-}
-
-.btn-secondary:hover {
-    background-color: #CBD5E0;
-    color: var(--color-text);
-}
+/* (duplicate removed) */
 
 
 /* ===================================
