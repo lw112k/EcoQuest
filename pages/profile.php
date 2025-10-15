@@ -1,12 +1,9 @@
 <?php
 // pages/profile.php
-// Displays the authenticated user's profile information and points.
-
 session_start();
 
-// --- DB Connection and Dependencies ---
-include("../config/db.php"); // Assuming this file establishes $conn
-include("../includes/header.php"); // Includes global CSS and navigation
+include("../config/db.php");
+include("../includes/header.php");
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -15,118 +12,163 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $current_user_id = $_SESSION['user_id'];
+$current_user_role = $_SESSION['user_role'];
 $db_error = '';
 $user_data = null;
-$is_db_connected = isset($conn) && $conn instanceof mysqli && !$conn->connect_error;
+$user_achievements = []; // For student badges
 
-if (!$is_db_connected) {
-    $db_error = 'Error: Database connection failed. Cannot load profile data.';
+if (!isset($conn) || $conn->connect_error) {
+    $db_error = 'Error: Database connection failed.';
 } else {
-    // Fetch user details from the database
-    // Fetching creation_date to use in the profile details
-    $sql = "SELECT user_id, username, email, user_role, total_points, created_at AS creation_date 
-            FROM users 
-            WHERE user_id = ?";
-    
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("i", $current_user_id);
-        if ($stmt->execute()) {
+    try {
+        // --- UPDATED: Fetch user data based on their role ---
+        $sql = '';
+        $table_name = '';
+        $id_column = '';
+
+        switch ($current_user_role) {
+            case 'student':
+                $table_name = 'students';
+                $id_column = 'student_id';
+                // Students have points
+                $sql = "SELECT {$id_column} AS user_id, username, email, '{$current_user_role}' AS user_role, total_points, created_at FROM {$table_name} WHERE {$id_column} = ?";
+                break;
+            case 'moderator':
+                $table_name = 'moderators';
+                $id_column = 'moderator_id';
+                // Moderators do not have points
+                $sql = "SELECT {$id_column} AS user_id, username, email, '{$current_user_role}' AS user_role, created_at FROM {$table_name} WHERE {$id_column} = ?";
+                break;
+            case 'admin':
+                $table_name = 'admins';
+                $id_column = 'admin_id';
+                // Admins do not have points
+                $sql = "SELECT {$id_column} AS user_id, username, email, '{$current_user_role}' AS user_role, created_at FROM {$table_name} WHERE {$id_column} = ?";
+                break;
+            default:
+                $db_error = 'Invalid user role found in session.';
+                break;
+        }
+
+        if (empty($db_error) && !empty($sql)) {
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $current_user_id);
+            $stmt->execute();
             $result = $stmt->get_result();
+
             if ($result->num_rows === 1) {
                 $user_data = $result->fetch_assoc();
+                // If the user is not a student, set total_points to 0 for display
+                if ($current_user_role !== 'student') {
+                    $user_data['total_points'] = 0;
+                }
             } else {
                 $db_error = 'User data not found. Please try logging in again.';
-                session_unset();
-                session_destroy();
             }
-        } else {
-            $db_error = 'Query execution failed: ' . $stmt->error;
+            $stmt->close();
         }
-        $stmt->close();
-    } else {
-        $db_error = 'Database query preparation failed: ' . $conn->error;
+
+        // --- Fetch achievements ONLY if the user is a student ---
+        if ($current_user_role === 'student' && $user_data) {
+            $sql_achievements = "
+                SELECT a.name, a.icon, a.description
+                FROM user_achievements ua
+                JOIN achievements a ON ua.achievement_id = a.achievement_id
+                WHERE ua.user_id = ?
+                ORDER BY ua.earned_at DESC
+            ";
+            if ($stmt_ach = $conn->prepare($sql_achievements)) {
+                $stmt_ach->bind_param("i", $current_user_id);
+                $stmt_ach->execute();
+                $result_ach = $stmt_ach->get_result();
+                while ($row = $result_ach->fetch_assoc()) {
+                    $user_achievements[] = $row;
+                }
+                $stmt_ach->close();
+            }
+        }
+
+    } catch (Exception $e) {
+        $db_error = 'Query execution failed: ' . $e->getMessage();
     }
 }
 ?>
 
 <main class="profile-page">
     <div class="container">
-        <!-- Page Title Section -->
         <h1 class="page-title">My EcoQuest Profile 👤</h1>
-        <p class="page-subtitle">Your stats, your impact. Check how you're helping the planet!</p>
+        <p class="page-subtitle">Your stats, your impact, your badges. Keep up the great work!</p>
 
         <?php if ($db_error): ?>
-            <!-- Error Message Display -->
-            <div class="message error-message"><?php echo $db_error; ?></div>
+            <div class="message error-message"><?php echo htmlspecialchars($db_error); ?></div>
         <?php endif; ?>
 
         <?php if ($user_data): ?>
-            <!-- User Profile Card -->
             <div class="profile-card-simple">
                 <div class="profile-grid">
                     <section class="profile-left">
-                        <!-- Profile Header -->
                         <div class="profile-header-simple">
                             <div class="profile-avatar-simple">
-                                <?php if (strtolower($user_data['user_role']) === 'moderator'): ?>
-                                    <i class="fas fa-user-shield"></i>
-                                <?php else: ?>
-                                    <i class="fas fa-user-circle"></i>
-                                <?php endif; ?>
+                                <?php
+                                    $role_icon = 'fa-user-circle'; // Default
+                                    if ($user_data['user_role'] === 'admin') $role_icon = 'fa-user-shield';
+                                    if ($user_data['user_role'] === 'moderator') $role_icon = 'fa-user-cog';
+                                ?>
+                                <i class="fas <?php echo $role_icon; ?>"></i>
                             </div>
                             <h2 class="profile-username-simple"><?php echo htmlspecialchars($user_data['username']); ?></h2>
-                            <?php 
-                                $role_class = strtolower($user_data['user_role']);
-                                $role_icon = ($role_class === 'moderator') ? 'fas fa-gavel' : 'fas fa-leaf';
-                            ?>
-                            <span class="profile-role-simple role-<?php echo $role_class; ?>">
-                                <i class="<?php echo $role_icon; ?>"></i> <?php echo ucfirst($role_class); ?>
+                            <span class="profile-role-simple role-<?php echo strtolower($user_data['user_role']); ?>">
+                                <?php echo ucfirst($user_data['user_role']); ?>
                             </span>
                         </div>
-
-                        <!-- Points Highlight Section -->
-                        <div class="points-highlight">
-                            <h4><i class="fas fa-star"></i> Total EcoPoints Earned</h4>
-                            <p class="points-value-large"><?php echo number_format($user_data['total_points']); ?></p>
-                            <p class="points-label">PTS</p>
-                        </div>
+                        <?php if ($current_user_role === 'student'): ?>
+                            <div class="points-highlight">
+                                <h4><i class="fas fa-star"></i> Total EcoPoints</h4>
+                                <p class="points-value-large"><?php echo number_format($user_data['total_points']); ?></p>
+                                <p class="points-label">PTS</p>
+                            </div>
+                        <?php endif; ?>
                     </section>
-
                     <aside class="profile-right">
-                        <!-- Details List -->
                         <div class="profile-details-list">
                             <div class="detail-item-simple">
-                                <i class="fas fa-id-card-alt"></i>
-                                <h4>Member ID:</h4>
-                                <p><?php echo substr($user_data['user_id'], 0, 8); ?>...</p>
-                            </div>
-                            <div class="detail-item-simple">
                                 <i class="fas fa-envelope"></i>
-                                <h4>Email Address:</h4>
+                                <h4>Email:</h4>
                                 <p><?php echo htmlspecialchars($user_data['email']); ?></p>
                             </div>
                             <div class="detail-item-simple">
                                 <i class="fas fa-calendar-alt"></i>
                                 <h4>Member Since:</h4>
-                                <p><?php echo date('j F Y', strtotime($user_data['creation_date'] ?? 'N/A')); ?></p>
-                            </div>
-                            <div class="detail-item-simple">
-                                <i class="fas fa-map-marker-alt"></i>
-                                <h4>Location:</h4>
-                                <p>Kuala Lumpur, Malaysia</p>
+                                <p><?php echo date('j F Y', strtotime($user_data['created_at'])); ?></p>
                             </div>
                         </div>
                     </aside>
                 </div>
 
-                <!-- Actions Footer -->
+                <?php if ($current_user_role === 'student'): ?>
+                <div class="badges-section">
+                    <h3 class="badges-title">My Badges</h3>
+                    <?php if (empty($user_achievements)): ?>
+                        <p class="no-badges-msg">You haven't earned any badges yet. Complete some quests!</p>
+                    <?php else: ?>
+                        <div class="badges-container">
+                            <?php foreach ($user_achievements as $badge): ?>
+                                <div class="badge-item" title="<?php echo htmlspecialchars($badge['description']); ?>">
+                                    <i class="<?php echo htmlspecialchars($badge['icon']); ?> badge-icon"></i>
+                                    <span class="badge-name"><?php echo htmlspecialchars($badge['name']); ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                    <a href="achievements.php" class="btn-secondary" style="margin-top: 15px;">View All Achievements</a>
+                </div>
+                <?php endif; ?>
+
                 <div class="profile-actions-footer-simple">
                     <a href="edit_profile.php" class="btn-primary"><i class="fas fa-edit"></i> Edit Profile</a>
                     <a href="logout.php" class="btn-secondary"><i class="fas fa-sign-out-alt"></i> Log Out</a>
                 </div>
             </div>
-        <?php elseif (!$db_error): ?>
-            <div class="message error-message">Cannot display profile. User session may be invalid.</div>
         <?php endif; ?>
     </div>
 </main>

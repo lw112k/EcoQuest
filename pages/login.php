@@ -1,145 +1,94 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <!-- Removed local <style> block, assuming global style.css is handling centering now -->
-</head>
-<body>
-    <?php
-    // pages/login.php
-    session_start();
+<?php
+session_start();
+include("../config/db.php");
+include("../includes/header.php");
 
-    // Redirect logged-in users away from login page
-    if (isset($_SESSION['user_id'])) {
-        header("Location: dashboard.php");
-        exit();
-    }
+// Redirect logged-in users
+if (isset($_SESSION['user_id'])) {
+    if ($_SESSION['user_role'] === 'admin') header("Location: admin/dashboard.php");
+    elseif ($_SESSION['user_role'] === 'moderator') header("Location: moderator/dashboard.php");
+    else header("Location: dashboard.php");
+    exit();
+}
 
-    // --- DB Connection and Dependencies ---
-    // This file should create the $conn (MySQLi connection object).
-    include("../config/db.php");
-    include("../includes/header.php");
+$login_error = '';
 
-    $db_error = '';
-    $login_error = '';
-    
-    // Check if connection object exists and is successful based on db.php logic
-    // Since db.php uses die() on critical failure, we check if $conn is set and not an error object.
-    $is_db_connected = isset($conn) && !$conn->connect_error;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $identifier = $_POST['identifier'] ?? '';
+    $password = $_POST['password'] ?? '';
+    $user_found = false;
 
-    if (!$is_db_connected) {
-        $db_error = 'Critical: Database connection failed. Cannot proceed with login.';
-    }
+    if (empty($identifier) || empty($password)) {
+        $login_error = 'Please enter both username/email and password.';
+    } else {
+        // --- This function tries to log in a user from a specific table ---
+        function attempt_login($conn, $identifier, $password, $role) {
+            $table_name = $role . 's'; // students, moderators, admins
+            $id_column = $role . '_id'; // student_id, moderator_id, admin_id
 
-    // PHP Logic for Login Form Submission
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $identifier = $_POST['identifier'] ?? ''; // Can be username or email
-        $password = $_POST['password'] ?? '';
+            $sql = "SELECT $id_column AS user_id, username, password FROM $table_name WHERE username = ? OR email = ?";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("ss", $identifier, $identifier);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $found_user = $result->fetch_assoc();
+            $stmt->close();
 
-        if (empty($identifier) || empty($password)) {
-            $login_error = 'Please enter both username/email and password.';
-        } elseif (!$is_db_connected) { 
-             $login_error = 'Cannot log in right now due to a critical database connection failure.';
-        } else {
-            // --- 1. DATABASE LOOKUP using MySQLi Prepared Statement ---
-            // We try to find a user matching either the username OR the email
-            $sql = "SELECT user_id, username, email, password_hash, user_role 
-                    FROM users 
-                    WHERE username = ? OR email = ?";
-            
-            // Prepare statement
-            if ($stmt = $conn->prepare($sql)) {
-                
-                // Bind parameters (s = string, used twice for username and email)
-                $stmt->bind_param("ss", $identifier, $identifier);
-                
-                if ($stmt->execute()) {
-                    $result = $stmt->get_result();
-                    $found_user = $result->fetch_assoc();
-                    $stmt->close(); // Close the statement after getting result
-
-                    // --- 2. VERIFY PASSWORD AND AUTHENTICATE ---
-                    if ($found_user) {
-                        // CRUCIAL: Use password_verify() to securely check the entered password
-                        if (password_verify($password, $found_user['password_hash'])) {
-                            
-                            // --- 3. SUCCESSFUL LOGIN: Start Session ---
-                            $_SESSION['user_id'] = $found_user['user_id'];
-                            $_SESSION['username'] = $found_user['username'];
-                            $_SESSION['user_role'] = $found_user['user_role'];
-
-                            // Redirect based on role
-                            header("Location: dashboard.php");
-                            exit();
-                        } else {
-                            // Password incorrect
-                            $login_error = 'Invalid username/email or password.';
-                        }
-                    } else {
-                        // User not found
-                        $login_error = 'Invalid username/email or password.';
-                    }
-                } else {
-                    // Execution failed
-                    $db_error = 'Query execution failed: ' . $stmt->error;
-                }
-                
-            } else {
-                // Preparation failed
-                $db_error = 'Database query preparation failed: ' . $conn->error;
+            if ($found_user && $password === $found_user['password']) { // Still using plain text check as per your setup
+                $_SESSION['user_id'] = $found_user['user_id'];
+                $_SESSION['username'] = $found_user['username'];
+                $_SESSION['user_role'] = $role;
+                return true;
             }
+            return false;
+        }
+
+        // Try to log in as admin, then moderator, then student
+        if (attempt_login($conn, $identifier, $password, 'admin')) {
+            header("Location: admin/dashboard.php");
+            exit();
+        } elseif (attempt_login($conn, $identifier, $password, 'moderator')) {
+            header("Location: moderator/dashboard.php");
+            exit();
+        } elseif (attempt_login($conn, $identifier, $password, 'student')) {
+            header("Location: dashboard.php");
+            exit();
+        } else {
+            $login_error = 'Invalid username/email or password.';
         }
     }
-    
-    // Close the connection explicitly if it was successfully established
-    if ($is_db_connected) {
-        // $conn->close(); // PHP will usually close this automatically at the end of the script
-    }
-    
-    ?>
+}
+?>
 
-    <main class="auth-page">
-        <div class="auth-card">
-            <h1 class="auth-title">Log In to EcoQuest</h1>
-            <p class="auth-subtitle">Welcome back, green hero! Let's check your points.</p>
+<main class="auth-page">
+    <div class="auth-card">
+        <h1 class="auth-title">Log In to EcoQuest</h1>
+        <p class="auth-subtitle">Welcome back, green hero!</p>
 
-            <?php if ($login_error): ?>
-                <div class="message error-message"><?php echo $login_error; ?></div>
-            <?php endif; ?>
-            <?php if ($db_error): ?>
-                <div class="message error-message">Database error occurred. Please try again later. (Error: <?php echo $db_error; ?>)</div>
-            <?php endif; ?>
+        <?php if ($login_error): ?>
+            <div class="message error-message"><?php echo $login_error; ?></div>
+        <?php endif; ?>
 
-            <form action="login.php" method="POST" class="auth-form">
-
-                <div class="form-group">
-                    <label for="identifier">Username or Email</label>
-                    <input type="text" id="identifier" name="identifier"
-                            value="<?php echo htmlspecialchars($_POST['identifier'] ?? ''); ?>" required
-                            placeholder="e.g., TP123456@mail.apu.edu.my or TP123456">
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required
-                            placeholder="Your secret eco-password">
-                </div>
-
-                <!-- NEW: Wrap button in container for centering -->
-                <div class="form-button-container" style="text-align: center; margin-top: 20px;">
-                    <button type="submit" class="btn-submit" style="display: block; margin: 0 auto;">Login</button>
-                </div>
-            </form>
-
-            <div class="auth-footer" style="text-align: center;">
-                <p>Don't have an account?</p>
-                <a href="register.php" class="auth-link">Register New Account</a>
+        <form action="login.php" method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="identifier">Username or Email</label>
+                <input type="text" id="identifier" name="identifier" required
+				placeholder="TP123456@mail.apu.edu.my or TP123456">
             </div>
-        </div>
-    </main>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required
+				placeholder="Your secret eco-password">
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button type="submit" class="btn-primary">Login</button>
+            </div>
+        </form>
 
-    <?php include("../includes/footer.php"); ?>
-</body>
-</html>
+        <div class="auth-footer" style="text-align: center;">
+            <p>Don't have an account? <a href="register.php" class="auth-link">Register New Account</a></p>
+        </div>
+    </div>
+</main>
+
+<?php include("../includes/footer.php"); ?>
