@@ -1,8 +1,5 @@
 <?php
 // pages/quests.php
-
-// 1. Include files at the top.
-// header.php will start the session.
 include("../config/db.php");
 include("../includes/header.php");
 
@@ -12,27 +9,23 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['student_id'])) {
     exit();
 }
 
-// 4. All variables are now available from header.php
 $student_id = $_SESSION['student_id'];
 $db_error = '';
 $quests = [];
-$is_db_connected = isset($conn) && !$conn->connect_error; // $conn comes from header.php
+$is_db_connected = isset($conn) && !$conn->connect_error;
 
 if (!$is_db_connected) {
     $db_error = 'Warning: Database connection failed. Cannot load quest list.';
 } else {
-    // --- 5. FETCH QUESTS & USER STATUS FROM NEW TABLES ---
-    // This query joins Quest, Quest_Progress, and Student_Quest_Submissions
-    // as per your new ERD.
+    // --- 5. FETCH QUESTS & USER STATUS (SQL FIXED) ---
     $sql = "
         SELECT
             q.Quest_id,
             q.Title,
             q.Description,
             q.Points_award,
-            q.Category,
+            qc.Category_Name, -- <-- CHANGED
             
-            -- **FIX**: Renamed the alias to 'user_quest_status' to prevent ambiguity
             CASE
                 WHEN s.Status IS NOT NULL THEN s.Status
                 WHEN p.Status IS NOT NULL THEN p.Status
@@ -40,6 +33,8 @@ if (!$is_db_connected) {
             END AS user_quest_status
             
         FROM Quest q
+        
+        LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID -- <-- ADDED JOIN
         
         LEFT JOIN Quest_Progress p 
             ON q.Quest_id = p.Quest_id AND p.Student_id = ?
@@ -50,11 +45,9 @@ if (!$is_db_connected) {
         WHERE
             q.Is_active = 1
         
-        -- **FIX**: Order by the new, non-ambiguous alias
         ORDER BY
             FIELD(user_quest_status, 'Available', 'active', 'pending', 'completed', 'rejected'), q.Points_award DESC";
 
-    // Line 62 is here
     if ($stmt = $conn->prepare($sql)) {
         $stmt->bind_param("ii", $student_id, $student_id);
 
@@ -62,7 +55,6 @@ if (!$is_db_connected) {
             $result = $stmt->get_result();
             while ($quest = $result->fetch_assoc()) {
                 // --- Map DB status to a user-friendly display status ---
-                // **FIX**: Use the new alias 'user_quest_status'
                 switch (strtolower($quest['user_quest_status'])) {
                     case 'completed':
                     case 'approved': 
@@ -116,7 +108,7 @@ if (!$is_db_connected) {
                 ?>
                     <div class="quest-card status-<?php echo $status_class; ?>">
                         <div class="quest-header">
-                            <span class="quest-theme"><?php echo htmlspecialchars($quest['Category']); ?></span>
+                            <span class="quest-theme"><?php echo htmlspecialchars($quest['Category_Name'] ?? 'General'); ?></span>
                             <span class="quest-points">+<?php echo number_format($quest['Points_award']); ?> PTS</span>
                         </div>
 

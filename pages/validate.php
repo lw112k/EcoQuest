@@ -1,7 +1,5 @@
 <?php
 // pages/validate.php
-// 1. DO NOT include db.php here. header.php already does.
-// 2. DO NOT start session here. header.php already does.
 include("../includes/header.php");
 
 // Check if user is logged in
@@ -22,11 +20,11 @@ if (!$is_db_connected) {
 }
 
 // =========================================================================
-// 1. POST Request Handler (Submission Logic - NEW)
+// 1. POST Request Handler (Submission Logic - FIXED)
 // =========================================================================
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && $is_db_connected) {
     $quest_id = filter_input(INPUT_POST, 'quest_id', FILTER_VALIDATE_INT);
-    $proof_text = trim($_POST['proof_text'] ?? '');
+    // $proof_text = trim($_POST['proof_text'] ?? ''); // <-- REMOVED
     $file_destination = null;
     $has_error = false;
 
@@ -46,11 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $is_db_connected) {
         $target_file = $target_dir . $file_name;
         $file_type = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
 
-        if (!in_array($file_type, ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov'])) {
-            $message = ['type' => 'error', 'text' => 'Only JPG, PNG, GIF, MP4, and MOV files are allowed.'];
+        // Allow common image and video types
+        if (!in_array($file_type, ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'mov', 'avi', 'wmv'])) {
+            $message = ['type' => 'error', 'text' => 'Only JPG, PNG, GIF, MP4, MOV, AVI files are allowed.'];
             $has_error = true;
-        } elseif ($_FILES["proof_media"]["size"] > 10 * 1024 * 1024) {
-            $message = ['type' => 'error', 'text' => 'File is too large (max 10MB).'];
+        } elseif ($_FILES["proof_media"]["size"] > 20 * 1024 * 1024) { // Increased to 20MB for video
+            $message = ['type' => 'error', 'text' => 'File is too large (max 20MB).'];
             $has_error = true;
         }
 
@@ -65,17 +64,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $is_db_connected) {
          $has_error = true;
     }
 
-    // --- Database Insert (REBUILT: INSERT into Student_Quest_Submissions) ---
+    // --- Database Insert (FIXED: No more proof_text/Review_feedback) ---
     if (!$has_error) {
         try {
             $sql_insert = "
                 INSERT INTO Student_Quest_Submissions 
-                    (Student_id, Quest_id, Image, Submission_date, Status, Review_feedback)
-                VALUES (?, ?, ?, NOW(), 'pending', ?)
+                    (Student_id, Quest_id, Image, Submission_date, Status)
+                VALUES (?, ?, ?, NOW(), 'pending')
             ";
             
             if ($stmt = $conn->prepare($sql_insert)) {
-                $stmt->bind_param("iiss", $student_id, $quest_id, $file_destination, $proof_text);
+                // Bind params (i: integer, s: string)
+                $stmt->bind_param("iis", $student_id, $quest_id, $file_destination);
 
                 if ($stmt->execute()) {
                     // Update Quest_Progress to 'pending' as well
@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $is_db_connected) {
 }
 
 // =========================================================================
-// 2. Fetch Active Quests (for Form Dropdown - UPDATED)
+// 2. Fetch Active Quests (for Form Dropdown - UNCHANGED)
 // =========================================================================
 if ($is_db_connected) {
     $sql_fetch_active = "
@@ -128,9 +128,10 @@ if ($is_db_connected) {
 }
 
 // =========================================================================
-// 3. Fetch Submission History (for display - UPDATED)
+// 3. Fetch Submission History (for display - FIXED)
 // =========================================================================
 if ($is_db_connected) {
+    // Note: We removed s.Review_feedback AS student_notes, as it's no longer used for that
     $sql_history = "
         SELECT
             s.Student_quest_submission_id,
@@ -139,8 +140,7 @@ if ($is_db_connected) {
             s.Review_date,
             s.Review_feedback,
             q.Title AS quest_title,
-            q.Points_award,
-            s.Review_feedback AS student_notes
+            q.Points_award
         FROM Student_Quest_Submissions s
         JOIN Quest q ON s.Quest_id = q.Quest_id
         WHERE
@@ -174,7 +174,7 @@ function get_status_class($status) {
 <main class="validate-page">
     <div class="container">
         <h1 class="page-title">Submit Quest Proof 📸</h1>
-        <p class="page-subtitle">Upload your photo/video and add a short story to complete your mission.</p>
+        <p class="page-subtitle">Upload your photo/video to complete your mission.</p>
 
         <?php if ($db_error): ?>
             <div class="message error-message"><?php echo htmlspecialchars($db_error); ?></div>
@@ -188,10 +188,7 @@ function get_status_class($status) {
 
         
         <?php 
-        // =======================================================
-        // THIS IS THE FIX
-        // We only show the form card IF the submission was NOT a success
-        // =======================================================
+        // Only show the form card IF the submission was NOT a success
         if (!isset($message['type']) || $message['type'] !== 'success'): 
         ?>
         <div class="auth-card submission-form-card" style="max-width: 700px; margin: 20px auto;">
@@ -218,15 +215,8 @@ function get_status_class($status) {
 
                     <h3><i class="fas fa-camera"></i> Upload Proof (Photo/Video)</h3>
                     <div class="form-group">
-                        <label for="proof_media">File (Max 10MB: JPG, PNG, MP4)</label>
+                        <label for="proof_media">File (Max 20MB: JPG, PNG, MP4, MOV)</label>
                         <input type="file" id="proof_media" name="proof_media" accept="image/*,video/*" required>
-                    </div>
-
-                    <h3><i class="fas fa-pencil-alt"></i> Notes & Description</h3>
-                    <div class="form-group">
-                        <label for="proof_text">Tell us about your action</label>
-                        <textarea id="proof_text" name="proof_text" rows="4" placeholder="e.g., I successfully recycled 10 plastic bottles..."></textarea>
-                        <p class="input-hint">Note: Your ERD does not have a column for student proof text. This text will be saved in the 'Review_feedback' column for now.</p>
                     </div>
 
                     <div class="form-actions" style="text-align:center; margin-top: 20px;">
@@ -266,12 +256,6 @@ function get_status_class($status) {
                                     <p>Reviewed: <?php echo date('d M Y, h:i A', strtotime($submission['Review_date'])); ?></p>
                                 <?php endif; ?>
                             </div>
-                            
-                            <?php if ($submission['Status'] === 'pending' && !empty($submission['student_notes'])): ?>
-                                <div class="review-notes" style="margin-top: 10px; padding: 10px; background-color: #fff; border: 1px solid #ddd; border-radius: 5px;">
-                                    <strong>Your Notes:</strong> <?php echo nl2br(htmlspecialchars($submission['student_notes'])); ?>
-                                </div>
-                            <?php endif; ?>
                             
                             <?php if ($submission['Status'] === 'rejected' && !empty($submission['Review_feedback'])): ?>
                                 <div class="review-notes" style="margin-top: 10px; padding: 10px; background-color: #fff; border: 1px solid var(--color-error); border-radius: 5px;">

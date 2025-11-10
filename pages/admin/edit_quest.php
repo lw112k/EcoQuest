@@ -16,16 +16,27 @@ $error_message = null;
 $quest_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 $quest = null; 
 
-$categories = ['Plastic Use', 'Energy Saving', 'Sustainable Transport', 'General'];
-$proof_types = ['Image', 'Text/Log', 'Both'];
+// --- Load categories from database ---
+$categories_from_db = [];
+if (isset($conn) && $conn) {
+    try {
+        $result = $conn->query("SELECT CategoryID, Category_Name FROM Quest_Categories ORDER BY Category_Name ASC");
+        while ($row = $result->fetch_assoc()) {
+            $categories_from_db[] = $row;
+        }
+    } catch (Exception $e) {
+        $error_message = "Failed to load categories: " . $e->getMessage();
+    }
+}
+// $proof_types = ['Image', 'Text/Log', 'Both']; // <-- REMOVED
 
 $form_data = [
     'Quest_id' => $quest_id,
     'Title' => '',
     'Description' => '',
     'Points_award' => '',
-    'Category' => 'Plastic Use',
-    'Proof_type' => 'Image',
+    'CategoryID' => '', // Use CategoryID
+    'Proof_type' => 'Image', // <-- LOCKED
     'Instructions' => '',
     'Is_active' => '1',
 ];
@@ -38,7 +49,7 @@ if (!$quest_id) {
 // 2. FETCH EXISTING QUEST DATA
 if (isset($conn) && $conn) {
     try {
-        $sql_fetch = "SELECT * FROM Quest WHERE Quest_id = ?";
+        $sql_fetch = "SELECT Quest_id, Title, Description, Points_award, CategoryID, Proof_type, Instructions, Is_active FROM Quest WHERE Quest_id = ?";
         $stmt_fetch = $conn->prepare($sql_fetch);
         $stmt_fetch->bind_param("i", $quest_id);
         $stmt_fetch->execute();
@@ -66,14 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $form_data['Title'] = filter_input(INPUT_POST, 'Title', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['Description'] = filter_input(INPUT_POST, 'Description', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['Points_award'] = filter_input(INPUT_POST, 'Points_award', FILTER_VALIDATE_INT);
-    $form_data['Category'] = filter_input(INPUT_POST, 'Category', FILTER_SANITIZE_SPECIAL_CHARS);
-    $form_data['Proof_type'] = filter_input(INPUT_POST, 'Proof_type', FILTER_SANITIZE_SPECIAL_CHARS);
+    $form_data['CategoryID'] = filter_input(INPUT_POST, 'CategoryID', FILTER_VALIDATE_INT);
+    $form_data['Proof_type'] = 'Image'; // <-- LOCKED VALUE
     $form_data['Instructions'] = filter_input(INPUT_POST, 'Instructions', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['Is_active'] = isset($_POST['Is_active']) ? 1 : 0; 
     $edit_id = filter_input(INPUT_POST, 'Quest_id', FILTER_VALIDATE_INT);
 
     // --- Validation ---
-    if (empty($form_data['Title']) || $form_data['Points_award'] === false || empty($form_data['Instructions']) || $edit_id !== $quest_id) {
+    if (empty($form_data['Title']) || $form_data['Points_award'] === false || empty($form_data['Instructions']) || $edit_id !== $quest_id || empty($form_data['CategoryID'])) {
         $error_message = "Validation Error: Please fill in all required fields.";
     } elseif ($form_data['Points_award'] <= 0) {
         $error_message = "Points Award must be a positive number.";
@@ -86,7 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         Title = ?, 
                         Description = ?, 
                         Points_award = ?, 
-                        Category = ?, 
+                        CategoryID = ?, 
                         Proof_type = ?, 
                         Instructions = ?, 
                         Is_active = ?
@@ -95,12 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $stmt = $conn->prepare($sql_update);
                 $stmt->bind_param(
-                    "ssisssii", 
+                    "ssiisssi", 
                     $form_data['Title'], 
                     $form_data['Description'], 
                     $form_data['Points_award'], 
-                    $form_data['Category'], 
-                    $form_data['Proof_type'], 
+                    $form_data['CategoryID'], 
+                    $form_data['Proof_type'], // This will always be 'Image'
                     $form_data['Instructions'], 
                     $form_data['Is_active'],
                     $edit_id
@@ -147,32 +158,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <textarea id="Description" name="Description" rows="2"><?php echo htmlspecialchars($form_data['Description']); ?></textarea>
             </div>
 
+            <input type="hidden" name="Proof_type" value="Image">
+
             <div class="form-row">
-                <div class="form-group w-full md:w-1/3">
+                <div class="form-group w-full md:w-1/2">
                     <label for="Points_award">Points Award <span class="required">*</span></label>
                     <input type="number" id="Points_award" name="Points_award" value="<?php echo htmlspecialchars($form_data['Points_award']); ?>" required min="1">
                 </div>
-                <div class="form-group w-full md:w-1/3">
-                    <label for="Category">Category <span class="required">*</span></label>
-                    <select id="Category" name="Category" required>
-                        <?php foreach ($categories as $cat): ?>
-                            <option value="<?php echo $cat; ?>" <?php echo (isset($form_data['Category']) && $form_data['Category'] === $cat) ? 'selected' : ''; ?>>
-                                <?php echo $cat; ?>
+
+                <div class="form-group w-full md:w-1/2">
+                    <label for="CategoryID">Category <span class="required">*</span></label>
+                    <select id="CategoryID" name="CategoryID" required>
+                        <option value="">-- Select a Category --</option>
+                        <?php foreach ($categories_from_db as $cat): ?>
+                            <option value="<?php echo $cat['CategoryID']; ?>" <?php echo (isset($form_data['CategoryID']) && $form_data['CategoryID'] == $cat['CategoryID']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($cat['Category_Name']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="form-group w-full md:w-1/3">
-                    <label for="Proof_type">Required Proof Type <span class="required">*</span></label>
-                    <select id="Proof_type" name="Proof_type" required>
-                        <?php foreach ($proof_types as $type): ?>
-                            <option value="<?php echo $type; ?>" <?php echo (isset($form_data['Proof_type']) && $form_data['Proof_type'] === $type) ? 'selected' : ''; ?>>
-                                <?php echo $type; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+
                 </div>
-            </div>
 
             <div class="form-group">
                 <label for="Instructions">Detailed Instructions <span class="required">*</span></label>
@@ -218,6 +224,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .form-row { display: flex; flex-wrap: wrap; gap: 20px; }
     .w-full { width: 100%; }
     .md\:w-1\/3 { flex-basis: calc(33.333% - 13.333px); }
+    /* === STYLE ADDED === */
+    .md\:w-1\/2 { flex-basis: calc(50% - 10px); }
     .form-actions { display: flex; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
     .btn-primary-submit, .btn-secondary-cancel { padding: 12px 20px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.3s; text-decoration: none; }
     .btn-primary-submit { background: #71B48D; color: #1D4C43; }
@@ -225,6 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     @media (max-width: 768px) {
         .form-row { flex-direction: column; gap: 15px; }
         .md\:w-1\/3 { flex-basis: 100%; }
+        /* === STYLE ADDED === */
+        .md\:w-1\/2 { flex-basis: 100%; }
     }
 </style>
 

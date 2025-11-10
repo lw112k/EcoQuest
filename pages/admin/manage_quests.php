@@ -15,7 +15,7 @@ $success_message = filter_input(INPUT_GET, 'success', FILTER_SANITIZE_SPECIAL_CH
 $error_message = filter_input(INPUT_GET, 'error', FILTER_SANITIZE_SPECIAL_CHARS);
 $quests = [];
 
-// 2. HANDLE QUEST DELETION
+// 2. HANDLE QUEST DELETION (Unchanged)
 $delete_id = filter_input(INPUT_GET, 'delete_id', FILTER_VALIDATE_INT);
 if ($delete_id && isset($conn) && $conn) {
     try {
@@ -60,14 +60,17 @@ if ($delete_id && isset($conn) && $conn) {
     }
 }
 
-// 3. FETCH ALL QUESTS (Updated to join User -> Admin -> Quest)
+// 3. FETCH ALL QUESTS (SQL FIXED)
 if (isset($conn) && $conn) {
     try {
         $sql_fetch = "
             SELECT
-                q.Quest_id, q.Title, q.Description, q.Points_award, q.Category, q.Created_at,
+                q.Quest_id, q.Title, q.Description, q.Points_award, 
+                qc.Category_Name, -- <-- CHANGED
+                q.Created_at,
                 COALESCE(u.Username, 'N/A') AS creator_username
             FROM Quest q
+            LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID -- <-- ADDED JOIN
             LEFT JOIN Admin a ON q.Created_by = a.Admin_id
             LEFT JOIN User u ON a.User_id = u.User_id
             ORDER BY q.Created_at DESC
@@ -111,8 +114,7 @@ if (isset($conn) && $conn) {
                     <tr>
                         <th>ID</th>
                         <th>Title</th>
-                        <th>Category</th>
-                        <th>Points</th>
+                        <th>Category</th> <th>Points</th>
                         <th>Creator</th>
                         <th>Created On</th>
                         <th class="text-center">Actions</th>
@@ -123,7 +125,7 @@ if (isset($conn) && $conn) {
                         <tr>
                             <td data-label="ID"><?php echo htmlspecialchars($quest['Quest_id']); ?></td>
                             <td data-label="Title"><?php echo htmlspecialchars($quest['Title']); ?></td>
-                            <td data-label="Category"><?php echo htmlspecialchars($quest['Category']); ?></td>
+                            <td data-label="Category"><?php echo htmlspecialchars($quest['Category_Name'] ?? 'N/A'); ?></td>
                             <td data-label="Points"><span class="badge points-badge"><?php echo htmlspecialchars($quest['Points_award']); ?> Pts</span></td>
                             <td data-label="Creator"><?php echo htmlspecialchars($quest['creator_username']); ?></td>
                             <td data-label="Created On"><?php echo date('Y-m-d', strtotime($quest['Created_at'])); ?></td>

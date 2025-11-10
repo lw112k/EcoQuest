@@ -14,14 +14,17 @@ if (!$is_logged_in || !in_array($user_role, ['moderator', 'admin'])) {
 $error_message = null;
 $quests = [];
 
-// 2. FETCH QUESTS (Read-only)
+// 2. FETCH QUESTS (SQL FIXED)
 if (isset($conn) && $conn) {
     try {
         $sql_fetch = "
             SELECT
-                q.Quest_id, q.Title, q.Description, q.Points_award, q.Category, q.Created_at,
+                q.Quest_id, q.Title, q.Description, q.Points_award, 
+                qc.Category_Name, -- <-- CHANGED
+                q.Created_at,
                 COALESCE(u.Username, 'N/A') AS creator_username
             FROM Quest q
+            LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID -- <-- ADDED JOIN
             LEFT JOIN Admin a ON q.Created_by = a.Admin_id
             LEFT JOIN User u ON a.User_id = u.User_id
             ORDER BY q.Created_at DESC
@@ -59,8 +62,7 @@ if (isset($conn) && $conn) {
                         <tr>
                             <th>ID</th>
                             <th>Title</th>
-                            <th>Category</th>
-                            <th>Points</th>
+                            <th>Category</th> <th>Points</th>
                             <th>Creator</th>
                             <th>Created On</th>
                             <th>Description</th>
@@ -71,7 +73,7 @@ if (isset($conn) && $conn) {
                             <tr>
                                 <td data-label="ID"><?php echo htmlspecialchars($quest['Quest_id']); ?></td>
                                 <td data-label="Title"><?php echo htmlspecialchars($quest['Title']); ?></td>
-                                <td data-label="Category"><?php echo htmlspecialchars($quest['Category']); ?></td>
+                                <td data-label="Category"><?php echo htmlspecialchars($quest['Category_Name'] ?? 'N/A'); ?></td>
                                 <td data-label="Points">
                                     <span class="badge points-badge">
                                         <?php echo htmlspecialchars($quest['Points_award']) . ' Pts'; ?>

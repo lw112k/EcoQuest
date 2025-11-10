@@ -75,8 +75,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action']) && $_POST['
 
 // --- FETCH QUEST DETAILS AND USER STATUS (UPDATED) ---
 try {
-    // A. Fetch the main quest details from the 'Quest' table
-    $sql_quest = "SELECT Quest_id, Title, Description, Points_award, Category, Proof_type, Instructions FROM Quest WHERE Quest_id = ?";
+    // A. Fetch the main quest details (SQL FIXED)
+    $sql_quest = "
+        SELECT 
+            q.Quest_id, q.Title, q.Description, q.Points_award, 
+            qc.Category_Name, 
+            q.Proof_type, q.Instructions 
+        FROM Quest q
+        LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID
+        WHERE q.Quest_id = ?
+    ";
+    
     if ($stmt_quest = $conn->prepare($sql_quest)) {
         $stmt_quest->bind_param("i", $quest_id);
         $stmt_quest->execute();
@@ -138,7 +147,7 @@ display_page: // Goto marker for showing the page content
         <?php if ($quest): ?>
             <div class="quest-summary-card">
                 <a href="quests.php" class="back-link">&laquo; Back to All Quests</a>
-                <span class="quest-category-tag"><?php echo htmlspecialchars($quest['Category']); ?></span>
+                <span class="quest-category-tag"><?php echo htmlspecialchars($quest['Category_Name'] ?? 'General'); ?></span>
                 <h1 class="quest-title"><?php echo htmlspecialchars($quest['Title']); ?></h1>
                 <div class="quest-metrics">
                     <span class="points-badge">💰 +<?php echo number_format($quest['Points_award']); ?> PTS</span>
