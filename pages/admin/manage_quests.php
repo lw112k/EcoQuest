@@ -1,3 +1,4 @@
+// Force PHP code completion for the file: pages/admin/manage_quests.php
 <?php
 // pages/admin/manage_quests.php
 require_once '../../includes/header.php'; 
