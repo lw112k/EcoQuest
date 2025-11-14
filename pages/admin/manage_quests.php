@@ -1,5 +1,4 @@
-// Force PHP code completion for the file: pages/admin/manage_quests.php
-<?php
+<?php // Force PHP code completion for the file: pages/admin/manage_quests.php
 // pages/admin/manage_quests.php
 require_once '../../includes/header.php'; 
 
