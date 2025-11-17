@@ -1016,7 +1016,7 @@ main {
     /* Mobile Navigation */
     .nav-links {
         /* This is for the JS toggle - initial state is hidden */
-        display: none;
+        display: flex;
         flex-direction: column;
         width: 100%;
         position: absolute;
@@ -1024,16 +1024,22 @@ main {
         left: 0;
         background-color: #FAFAF0;
         box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-        padding: 10px 0;
+        padding: 0;
+        max-height: 0;
+        overflow: hidden;
         opacity: 0;
-        transform: translateY(-10px);
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        /*transform: translateY(-10px);*/
+        visibility: hidden;
+        transition: max-height 0.5s ease, opacity 0.3s ease, visibility 0.5s;
     }
 
     .nav-links.is-open {
-        display: flex; /* Shown when JS toggles the class */
+        /* New properties to show it smoothly */
+        max-height: 500px; /* Needs to be larger than content height */
+        padding: 10px 0; /* Add padding when open */
         opacity: 1;
-        transform: translateY(0);
+        visibility: visible;
+        /* Remove transform property for this transition model */
     }
 
     .nav-links li {
