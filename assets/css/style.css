@@ -132,7 +132,7 @@ main {
 }
 
 .nav-links a:hover,
-.nav-links a.active {
+.nav-links a:active {
     color: #1D4C43; /* Forest Green on hover */
     border-bottom: 3px solid #71B48D; /* Mint Green highlight */
 }
