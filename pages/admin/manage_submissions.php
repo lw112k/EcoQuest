@@ -169,4 +169,63 @@ if (!$conn) {
     </div>
 </main>
 
+<style>
+    /* NOTE: These styles augment the main style.css to ensure specific table and filter components are responsive on this page. */
+
+    /* Global classes used in the PHP above that need basic definition if missing */
+    .admin-data-table { width: 100%; border-collapse: collapse; }
+    .admin-data-table th, .admin-data-table td { padding: 12px 15px; text-align: left; }
+    .admin-data-table thead th { background-color: #E6F3EE; color: #1D4C43; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; }
+    .table-responsive { overflow-x: auto; }
+
+    /* Mobile Responsive Table Transformation */
+    @media (max-width: 768px) {
+        /* Filter Navigation Stacking */
+        .submission-filter-nav {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .submission-filter-nav a {
+            flex: 1 1 auto; /* Allow buttons to wrap and take up space */
+            text-align: center;
+            min-width: 120px;
+        }
+
+        /* Card Transformation */
+        .admin-data-table thead {
+            display: none;
+        }
+        .admin-data-table, .admin-data-table tbody, .admin-data-table tr, .admin-data-table td {
+            display: block;
+            width: 100%;
+        }
+        .admin-data-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DDEEE5;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .admin-data-table td {
+            text-align: right;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+        .admin-data-table td:last-child {
+            border-bottom: none;
+        }
+        .admin-data-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: calc(50% - 30px);
+            text-align: left;
+            font-weight: 600;
+            color: #1D4C43;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+    }
+</style>
+
 <?php require_once '../../includes/footer.php'; ?>
