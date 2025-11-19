@@ -171,8 +171,8 @@ if (!$conn) {
                 <a href="reports.php" class="btn btn-secondary">View Analytics</a>
             </div>
             <div class="section-card action-card">
-                <h2><i class="fas fa-cogs"></i> Manage Content</h2>
-                <p>Create or edit the quests and rewards available to users.</p>
+                <h2><i class="fas fa-cogs"></i> Manage Quests</h2>
+                <p>Create new environmental challenges, update instructions, or delete old quests.</p>
                 <a href="manage_quests.php" class="btn btn-secondary">Manage Quests</a>
             </div>
         </section>
