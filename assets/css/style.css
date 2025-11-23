@@ -70,7 +70,7 @@ main {
 }
 
 /* ====================================
-   NAVIGATION BAR (PC Menu)
+   NAVIGATION BAR/HEADER/FOOTER (PC Menu)
    ==================================== */
 
 .main-nav {
@@ -84,6 +84,29 @@ main {
     top: 0;
     z-index: 1000; /* Ensure it stays on top */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/*Footer*/
+.footer-content{
+    text-align: center;
+    padding: 25px; 
+    background-color: #1D4C43; 
+    color: #FAFAF0; 
+    font-size: 0.9rem;
+}
+
+.footer-link{
+    margin: 3% 0 3% 0;
+}
+.footer-link a{
+    color: white;
+    text-decoration: none;
+    font-size: 18px;
+    margin-right: 5%;
+}
+
+.footer-copyright p{
+    font-size: 10px;
 }
 
 /* Nav Brand (Logo + Title) */

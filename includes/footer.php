@@ -4,13 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title></title>
-</head>
+    <link rel="stylesheet" href="../assets/css/style.css">
 <body>
     <footer>
-    <div class="footer-content" style="text-align: center; padding: 25px; background-color: #1D4C43; color: #FAFAF0; font-size: 0.9rem;">
-        <p>&copy; <?php echo date("Y"); ?> EcoQuest. A project for APU's Responsive Web Design & Development.</p>
-        <p style="margin-top: 5px;">APU Community: Go Green. Earn Rewards. Plant Trees.</p>
-    </div>
+        <div class="footer-content">
+            <img src="<?php echo $base_path; ?>assets/images/logo.PNG" alt="EcoQuest Logo" class="logo">
+            <div class="footer-link">
+                <a href="">Home</a>
+                <a href="">About</a>
+                <a href="">Quest</a>
+                <a href="">Leaderboard</a>
+                <a href="">Reward</a>
+            </div>
+            <div class="footer-copyright">
+                <p>&copy; <?php echo date("Y"); ?> EcoQuest. A project for APU's Responsive Web Design & Development.<br> APU Community: Go Green. Earn Rewards. Plant Trees.</p>
+            </div>
+        </div>
     </footer>
 
     <?php
