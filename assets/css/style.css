@@ -48,6 +48,13 @@
         scroll-behavior: auto !important;
     }
 }
+/*====================
+    RESET & DEFAULTS
+======================*/
+* {
+    box-sizing: border-box; /* Ensures padding doesn't break layout width */
+}
+
 body {
     font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Use a modern font-family stack */
     background-color: #FAFAF0; /* Light Cream background */
@@ -58,6 +65,7 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    width: 100%;
 }
 
 main {
@@ -74,15 +82,21 @@ main {
    ==================================== */
 
 .main-nav {
+    /* Layout */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 8%; /* Matches the padding of the hero section for alignment */
-    background-color: #FAFAF0; /* Light Cream background */
-    border-bottom: 1px solid rgba(29, 76, 67, 0.1); /* Subtle bottom border */
+    width: 100%; /* Ensures the container grabs full screen width */
+    
+    /* Spacing & Positioning */
+    padding: 15px 8%; /* Keeps content aligned with your hero section */
     position: sticky;
     top: 0;
-    z-index: 1000; /* Ensure it stays on top */
+    z-index: 1000;
+    
+    /* Styling (Light Cream Theme) */
+    background-color: #FAFAF0; 
+    border-bottom: 1px solid rgba(29, 76, 67, 0.1);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
@@ -357,47 +371,29 @@ main {
 }
 
 
-/* ====================================
-   LOGIN & REGISTER PAGE STYLES (Auth Pages)
-   ==================================== */
-
+/*====================
+    LOGIN
+======================*/
+/*--Login n Register Background--*/
 .auth-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 85vh;
-    padding: 40px 20px;
-    background-color: #FAFAF0;
-}
-
-.login-container {
-    max-width: 420px;
+    position: relative;
     width: 100%;
+    /* Subtract navbar height so it doesn't scroll unnecessarily */
+    display: flex;
+    justify-content: center; /* Center Horizontally */
+    align-items: center;     /* Center Vertically */
+    overflow: hidden;
 }
 
-.auth-card {
-    background: #FFFFFF;
-    padding: 40px;
-    border-radius: 12px;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
-    text-align: center;
-}
 
-.auth-title {
-    font-size: 1.8rem;
-    color: #1D4C43;
-    margin-bottom: 10px;
-}
-
-.auth-subtitle {
+.auth-subtitle{
     font-size: 1rem;
     color: #2C3E50;
     margin-bottom: 30px;
     opacity: 0.8;
+    text-align: center;
 }
 
-/* Form Styles */
-/* Single source of truth for auth-form */
 .auth-form {
     display: flex;
     flex-direction: column;
@@ -405,145 +401,302 @@ main {
     text-align: left;
 }
 
-/* New: Styles for Select, File Input, and Textarea, shared across all auth/form pages */
-.auth-form select,
-.auth-form textarea,
-.auth-form input[type="file"] {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #DCDCDC;
-    border-radius: 8px;
-    font-size: 1rem;
-    box-sizing: border-box; 
-    transition: border-color 0.3s;
+.auth-container{
+    display: flex;
+    flex-direction: row;
+    position: relative;
+    padding: 60px 20px 30px 20px;
+    height: 800px;
+    width: 450px;
+    background-color: rgba(220, 240, 255, 0.406);
+    backdrop-filter: blur(15px);
+    border: 3px solid rgba(220, 240, 255, .3);
+    overflow: hidden;
+    margin-top: 2%;
+    margin-bottom: 2%;
 }
 
-.auth-form select:focus,
-.auth-form textarea:focus,
-.auth-form input[type="file"]:focus {
-    border-color: var(--color-secondary);
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(113, 180, 141, 0.2);
+.log-auth-card{
+    position: absolute;
+    width: 85%;
+    left: 27px;
+    transition: .5s ease-in-out;
 }
 
-.auth-form select {
-    /* Custom styling for select to look consistent */
-    appearance: none; 
-    /* Base64 SVG for a custom dropdown arrow (dark green) */
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%231D4C43' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.018 2.385 4 3.232 4h9.536c.847 0 1.346 1.018.78 1.658l-4.796 5.482a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    padding-right: 30px;
-    cursor: pointer;
+.reg-auth-card{
+    position: absolute;
+    width: 85%;
+    right: -550px;
+    transition: .5s ease-in-out;
 }
 
-.input-hint {
-    font-size: 0.85rem;
-    color: #999;
-    margin-top: 5px;
-    padding-left: 2px;
+.switch{
+    display: flex;
+    position: absolute;
+    bottom: 50px;
+    left: 40px;
+    width: 85%;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.16);
+    backdrop-filter: 10px;
+    border-radius: 10px;
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
 }
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 8px;
-    color: #2C3E50;
-    font-size: 0.95rem;
-}
-
-.form-group input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #DCDCDC;
-    border-radius: 8px;
-    font-size: 1rem;
-    transition: border-color 0.3s;
-}
-
-.form-group input:focus {
-    border-color: #71B48D;
-    outline: none;
-    box-shadow: 0 0 5px rgba(113, 180, 141, 0.5);
-}
-
-/* Primary Button for Auth */
-.btn-primary-auth {
-    width: 100%;
-    background: #1D4C43;
-    color: #FAFAF0;
-    padding: 12px 20px;
+.switch a{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #ffffff;
+    text-decoration: none;
     font-size: 1.1rem;
     font-weight: 700;
+    width: 50%;
+    height: 50px;
+    border-radius: 10px;
+    z-index: 10;
+}
+
+.btn-active{
+    position: absolute;
+    bottom: 0px;   
+    left: 0px;
+    width: 50%;
+    height: 50px;
+    background: #398d66;
+    border-radius: 10px;
+    box-shadow: 2px 0px 12px rgba(0, 0, 0, 0.1);
+    transition: .5s ease-in-out;
+}
+
+/*--Login n Register Form--*/
+.auth-form{
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.input-group{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.input-label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.input-wrapper:hover {
+    border-color: #2d8659;
+    background: #fff;
+}
+
+.input-wrapper.focused {
+    border-color: #2d8659;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(45, 134, 89, 0.1);
+}
+
+.input-icon {
+    padding: 0 1rem;
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.input-modern {
+    flex: 1;
+    padding: 1rem 0 1rem 0;
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    color: #333;
+    outline: none;
+}
+
+.input-modern::placeholder {
+    color: #999;
+
+}
+
+.password-toggle {
+    background: none;
+    border: none;
+    padding: 0 1rem;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: transform 0.2s;
+}
+
+.password-toggle:hover {
+    transform: scale(1.1);
+}
+
+.btn-sub {
+    background-color: #1D4C43; /* Dark Primary Green */
+    color: #FFFFFF;
+    margin: auto;
+    padding: 12px 25px;
+    width: 30%;
+    align-items: center;
+    justify-content: center;
+    display: inline-flex;
     border: none;
     border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.3s;
-    margin-top: 10px;
-}
-
-.btn-primary-auth:hover {
-    background: #71B48D;
-    color: #1D4C43;
-}
-
-/* --- New styles for side-by-side Save/Cancel buttons on the Edit/Auth pages --- */
-/* Form submit row (shared) */
-.form-submit {
-    display: flex;
-    justify-content: center; /* Center by default */
-    gap: 15px;
-    margin-top: 25px;
-    margin-bottom: 20px;
-}
-
-.form-submit .btn-submit,
-.form-submit .btn-secondary {
-    min-width: 160px;
-    display: block;
-    text-align: center;
-    padding: 10px 15px;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 700;
-    margin-top: 0;
-    transition: background 0.3s;
-}
-
-.auth-footer {
-    text-align: center;
-    margin-top: 30px;
-    font-size: 0.95rem;
-}
-/* ... The rest of the authentication styles remain the same ... */
-
-/* Footer Links */
-.auth-footer {
-    margin-top: 30px;
-    font-size: 0.95rem;
-    color: #2C3E50;
-}
-
-.auth-footer a, .auth-footer-small a {
-    color: #71B48D;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
     text-decoration: none;
-    font-weight: 600;
-    transition: color 0.3s;
 }
 
-.auth-footer a:hover, .auth-footer-small a:hover {
-    color: #1D4C43;
-    text-decoration: underline;
+.btn-sub:hover {
+    background-color: #276749; /* Slightly darker green */
+    transform: translateY(-1px);
 }
 
-.auth-footer-small {
-    margin-top: 10px;
-    font-size: 0.85rem;
+
+
+/* Side Panel */
+.auth-side-panel {
+    background: linear-gradient(135deg, rgba(45, 134, 89, 0.9), rgba(79, 184, 127, 0.9));
+    padding: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    position: relative;
+    height: 800px;
+
 }
 
+
+.side-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 400px;
+}
+
+.side-content h2 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.side-content > p {
+    font-size: 1.2rem;
+    margin-bottom: 2.5rem;
+    opacity: 0.95;
+}
+
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    text-align: left;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.feature-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(10px);
+}
+
+.feature-icon {
+    font-size: 2rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+}
+
+.feature-item span:last-child {
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+/* =========================================
+   MOBILE RESPONSIVENESS (iPhone SE & Others)
+   ========================================= */
+
+@media screen and (max-width: 900px) {
+
+    /* 1. Reset the Main Page Layout */
+    .auth-page {
+        height: auto;
+        min-height: 100vh;
+        padding: 80px 15px 40px 15px; /* Add top padding so nav doesn't cover it */
+        align-items: flex-start; /* Aligns card to top rather than center on short screens */
+    }
+
+    /* 2. Stack the layout vertically */
+    .auth-card-wrapper {
+        flex-direction: column;
+        width: 100%;
+        max-width: 400px; /* Prevents it from getting too wide on tablets */
+        box-shadow: none; /* Optional: Cleaner look on mobile */
+        border-radius: 20px;
+    }
+
+    /* 3. Hide the Side Panel (Green Box) */
+    /* On mobile, we only need the form. The side info takes up too much space. */
+    .auth-side-panel {
+        display: none; 
+    }
+
+    /* 4. Fix the Form Container Width */
+    .auth-container {
+        width: 100%; /* crucial: changes from fixed 450px to fluid */
+        height: 650px; /* Slightly shorter to fit mobile screens better */
+        padding: 40px 20px; /* Reduce padding so inputs have room */
+    }
+
+    /* 5. Adjust the Sliding Cards */
+    .log-auth-card, 
+    .reg-auth-card {
+        width: 90%; /* Make forms slightly wider on mobile */
+        left: 5%;   /* Center them (5% left + 90% width = centered) */
+        right: auto; /* Reset right positioning */
+    }
+    
+    /* Re-position the register card off-screen for the animation logic */
+    /* Note: JS likely toggles a class. Ensure JS sliding still works. 
+       If your JS sets specific pixel 'left' values, the animation might look weird.
+       Ideally, use percentages in JS or CSS classes for movement. */
+    
+    /* 6. Fix the Toggle Switch (Login/Register Buttons) */
+    .switch {
+        width: 90%;
+        left: 5%; /* Center the switch */
+        bottom: 30px; /* Move it up slightly */
+    }
+}
 
 /* ====================================
    DASHBOARD PAGE STYLES (Student View)

@@ -111,3 +111,34 @@ document.addEventListener('DOMContentLoaded', () => {
         faqCloseButton.addEventListener('click', togglePopup);
     }
 });
+
+/*==================
+LOGIN & REGISTER
+====================*/
+//view password
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const toggle = event.target;
+    if (input.type === 'password') {
+        input.type = 'text';
+        toggle.textContent = '🙉';
+    } else {
+        input.type = 'password';
+        toggle.textContent = '🙈';
+    }
+}
+
+// for login and register swap on the same page
+var x = document.getElementById('login');
+var y = document.getElementById('register');
+var z = document.getElementById('btn');       
+function login(){
+    x.style.left = "27px";
+    y.style.right = "-550px";
+    z.style.left = "0px";
+}
+function register(){
+    x.style.left = "-550px";
+    y.style.right = "25px";
+    z.style.left = "210px";
+} 
