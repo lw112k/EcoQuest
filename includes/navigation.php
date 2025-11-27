@@ -61,8 +61,7 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
             </a></li>
             <li><a href="<?php echo $base_path; ?>pages/logout.php" class="nav-btn-signup">Logout</a></li>
         <?php else: ?>
-            <li><a href="<?php echo $base_path; ?>pages/login.php" class="nav-btn-login">Login</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/register.php" class="nav-btn-signup">Register</a></li>
+            <li><a href="<?php echo $base_path; ?>pages/sign_up.php" class="nav-btn-signup">Sign Up</a></li>
         <?php endif; ?>
     </div>
 
