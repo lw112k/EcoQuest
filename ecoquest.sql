@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Nov 10, 2025 at 08:08 AM
+-- Generation Time: Dec 03, 2025 at 05:49 PM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -179,7 +179,14 @@ CREATE TABLE IF NOT EXISTS `post` (
   `Created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`Post_id`),
   KEY `Post_fk_Student_id` (`Student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `post`
+--
+
+INSERT INTO `post` (`Post_id`, `Student_id`, `Image`, `Title`, `Content`, `Created_at`) VALUES
+(2, 1, NULL, 'Recycling', 'I Love Doing Recycle', '2025-11-14 17:23:22');
 
 -- --------------------------------------------------------
 
@@ -292,7 +299,16 @@ CREATE TABLE IF NOT EXISTS `quest_progress` (
   PRIMARY KEY (`Quest_Progress_id`),
   KEY `QuestProgress_fk_Quest_id` (`Quest_id`),
   KEY `QuestProgress_fk_Student_id` (`Student_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `quest_progress`
+--
+
+INSERT INTO `quest_progress` (`Quest_Progress_id`, `Quest_id`, `Status`, `Completed_at`, `Student_id`) VALUES
+(2, 4, 'completed', NULL, 1),
+(3, 5, 'pending', NULL, 1),
+(4, 2, 'active', NULL, 1);
 
 -- --------------------------------------------------------
 
@@ -310,7 +326,14 @@ CREATE TABLE IF NOT EXISTS `redemption_history` (
   PRIMARY KEY (`Redemption_History_id`),
   KEY `Redemption_fk_Student_id` (`Student_id`),
   KEY `Redemption_fk_Reward_id` (`Reward_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `redemption_history`
+--
+
+INSERT INTO `redemption_history` (`Redemption_History_id`, `Student_id`, `Reward_id`, `Points_used`, `Redemption_date`) VALUES
+(1, 1, 1, 250, '2025-11-17 13:33:46');
 
 -- --------------------------------------------------------
 
@@ -335,7 +358,7 @@ CREATE TABLE IF NOT EXISTS `reward` (
 --
 
 INSERT INTO `reward` (`Reward_id`, `Reward_name`, `Description`, `Points_cost`, `Stock`, `Image_url`, `Is_active`) VALUES
-(1, 'Cuppa Sustainability', 'A voucher for one free premium drink from the school canteen or a partnering local cafe (like a fancy frappe or latte). Perfect fuel after a long quest!', 250, 30, NULL, 1),
+(1, 'Cuppa Sustainability', 'A voucher for one free premium drink from the school canteen or a partnering local cafe (like a fancy frappe or latte). Perfect fuel after a long quest!', 250, 29, NULL, 1),
 (2, 'Eco-Planner Pack', 'A sustainable stationary bundle: one recycled paper notebook and a bamboo pen. Keep those assignment notes eco-friendly!', 350, 50, NULL, 1),
 (3, 'Early Access Pass', 'Get priority entry to the next major school event (e.g., school carnival, sports day entrance, or lecture hall seating). Skip the queue, you earned it!', 400, 20, NULL, 1),
 (4, 'Powerbank', 'A high-quality mini power bank to keep your devices charged, essential for any IT student or quest winner. Named after your pet, lah!', 550, 15, NULL, 1),
@@ -430,12 +453,14 @@ DROP TABLE IF EXISTS `student_moderation_records`;
 CREATE TABLE IF NOT EXISTS `student_moderation_records` (
   `Student_moderation_records_id` int NOT NULL AUTO_INCREMENT,
   `Student_id` int NOT NULL,
+  `User_id` int NOT NULL,
   `Title` varchar(255) DEFAULT NULL,
   `Description` text,
-  `Admin_id` int NOT NULL,
+  `Duration` varchar(100) DEFAULT NULL,
+  `Date_Time` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`Student_moderation_records_id`),
   KEY `ModRecord_fk_Student_id` (`Student_id`),
-  KEY `ModRecord_fk_Admin_id` (`Admin_id`)
+  KEY `ModRecord_fk_User_id` (`User_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
@@ -459,7 +484,15 @@ CREATE TABLE IF NOT EXISTS `student_quest_submissions` (
   KEY `Submission_fk_Student_id` (`Student_id`),
   KEY `Submission_fk_Quest_id` (`Quest_id`),
   KEY `Submission_fk_Moderator_id` (`Moderator_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `student_quest_submissions`
+--
+
+INSERT INTO `student_quest_submissions` (`Student_quest_submission_id`, `Student_id`, `Quest_id`, `Image`, `Submission_date`, `Status`, `Moderator_id`, `Review_date`, `Review_feedback`) VALUES
+(3, 1, 4, 'uploads/activities/proof_691ab23db7bc56.77390705_website-export-1763324521010.png', '2025-11-17 13:27:25', 'completed', NULL, '2025-11-17 13:33:16', 'Good'),
+(4, 1, 5, 'uploads/activities/proof_691eaefcef9359.86533957_Screenshot 2025-11-17 191945.png', '2025-11-20 14:02:36', 'pending', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -611,8 +644,8 @@ ALTER TABLE `student_feedback`
 -- Constraints for table `student_moderation_records`
 --
 ALTER TABLE `student_moderation_records`
-  ADD CONSTRAINT `ModRecord_fk_Admin_id` FOREIGN KEY (`Admin_id`) REFERENCES `admin` (`Admin_id`),
-  ADD CONSTRAINT `ModRecord_fk_Student_id` FOREIGN KEY (`Student_id`) REFERENCES `student` (`Student_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `ModRecord_fk_Student_id` FOREIGN KEY (`Student_id`) REFERENCES `student` (`Student_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ModRecord_fk_User_id` FOREIGN KEY (`User_id`) REFERENCES `user` (`User_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `student_quest_submissions`
