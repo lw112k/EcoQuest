@@ -7,13 +7,13 @@ require_once '../../includes/header.php';
 // =======================================================
 $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
-if (!$is_logged_in || $user_role !== 'admin') {
+if (!$is_logged_in || $user_role !== 'admin' || !isset($_SESSION['admin_id'])) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }
 
 // =======================================================
-// 2. FORM SUBMISSION HANDLING (UPDATED)
+// 2. FORM SUBMISSION HANDLING (NEW ERD)
 // =======================================================
 $errors = [];
 $success_message = null;
@@ -29,17 +29,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $form_data = ['username' => $username, 'email' => $email, 'role' => $role];
 
     // --- Validation ---
-    if (empty($username) || empty($email) || empty($password)) $errors[] = 'All fields except confirm password are required.';
+    if (empty($username) || empty($email) || empty($password)) $errors[] = 'All fields are required.';
     if ($password !== $confirm_password) $errors[] = 'Passwords do not match.';
     if (!in_array($role, $valid_roles)) $errors[] = 'Invalid user role selected.';
 
-    // --- Uniqueness Check (Across all three tables) ---
+    // --- Uniqueness Check (In User table) ---
     if (empty($errors) && isset($conn)) {
-        $sql_check = "(SELECT email FROM students WHERE email = ? OR username = ?)
-                      UNION (SELECT email FROM moderators WHERE email = ? OR username = ?)
-                      UNION (SELECT email FROM admins WHERE email = ? OR username = ?)";
+        $sql_check = "SELECT User_id FROM User WHERE Username = ? OR Email = ?";
         $stmt_check = $conn->prepare($sql_check);
-        $stmt_check->bind_param("ssssss", $email, $username, $email, $username, $email, $username);
+        $stmt_check->bind_param("ss", $username, $email);
         $stmt_check->execute();
         if ($stmt_check->get_result()->num_rows > 0) {
             $errors[] = 'Username or Email is already taken by another user.';
@@ -47,35 +45,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt_check->close();
     }
 
-    // --- Database Insertion (Into the correct table) ---
+    // --- Database Insertion (TRANSACTION) ---
     if (empty($errors) && isset($conn)) {
-        $table_name = $role . 's'; // students, moderators, admins
-        $sql_insert = '';
-        $bind_types = '';
-        $bind_params = [];
-
-        // Prepare query based on role
-        if ($role === 'student') {
-            $sql_insert = "INSERT INTO {$table_name} (username, email, password, total_points) VALUES (?, ?, ?, 0)";
-            $bind_types = "sss";
-            $bind_params = [$username, $email, $password];
-        } else { // For admin and moderator
-            $sql_insert = "INSERT INTO {$table_name} (username, email, password) VALUES (?, ?, ?)";
-            $bind_types = "sss";
-            $bind_params = [$username, $email, $password];
-        }
-
+        
+        $conn->begin_transaction();
+        
         try {
-            $stmt_insert = $conn->prepare($sql_insert);
-            $stmt_insert->bind_param($bind_types, ...$bind_params);
-            if ($stmt_insert->execute()) {
-                $success_message = "User '{$username}' successfully registered as a {$role}!";
-                $form_data = ['username' => '', 'email' => '', 'role' => 'student']; // Clear form
-            } else {
-                throw new Exception($stmt_insert->error);
+            // 1. Create the User record
+            $password_hash = password_hash($password, PASSWORD_DEFAULT);
+            $sql_user = "INSERT INTO User (Username, Email, Role, Password_hash, Created_at) VALUES (?, ?, ?, ?, NOW())";
+            $stmt_user = $conn->prepare($sql_user);
+            $stmt_user->bind_param("ssss", $username, $email, $role, $password_hash);
+            
+            if (!$stmt_user->execute()) {
+                throw new Exception("Failed to create User record: " . $stmt_user->error);
             }
-            $stmt_insert->close();
+            
+            $new_user_id = $conn->insert_id;
+            $stmt_user->close();
+            
+            // 2. Create the Role-specific record
+            if ($role === 'student') {
+                $sql_role = "INSERT INTO Student (User_id, Total_point, Total_Exp_Point, Join_Date) VALUES (?, 0, 0, NOW())";
+            } elseif ($role === 'moderator') {
+                $sql_role = "INSERT INTO Moderator (User_id) VALUES (?)";
+            } elseif ($role === 'admin') {
+                $sql_role = "INSERT INTO Admin (User_id) VALUES (?)";
+            }
+            
+            $stmt_role = $conn->prepare($sql_role);
+            $stmt_role->bind_param("i", $new_user_id);
+            
+            if (!$stmt_role->execute()) {
+                 throw new Exception("Failed to create $role record: " . $stmt_role->error);
+            }
+            $stmt_role->close();
+            
+            // All good! Commit.
+            $conn->commit();
+            $success_message = "User '{$username}' successfully registered as a {$role}!";
+            $form_data = ['username' => '', 'email' => '', 'role' => 'student']; // Clear form
+            
         } catch (Exception $e) {
+            $conn->rollback();
             $errors[] = "Database registration failed: " . $e->getMessage();
         }
     }

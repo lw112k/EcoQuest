@@ -7,8 +7,9 @@ include("../config/db.php"); // Provides $conn (MySQLi object)
 include("../includes/header.php");
 
 // Check if user is logged in and is a student
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-    header("Location: login.php");
+// We now check for student_id, which is set during login
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student' || !isset($_SESSION['student_id'])) {
+    header("Location: sign_up.php");
     exit();
 }
 
@@ -17,9 +18,10 @@ $db_error = '';
 // Check if connection object exists and is successful
 $is_db_connected = isset($conn) && !$conn->connect_error;
 
-// Default values if DB connection fails
-$username = $_SESSION['username'] ?? 'Student Buddy';
-$user_id = $_SESSION['user_id'];
+// Get the correct IDs from the session
+$username = $_SESSION['username'] ?? 'Student Buddy'; // Get Username from User table session
+$student_id = $_SESSION['student_id']; // Get Student_id from session
+
 $user_metrics = [
     'total_points' => 0,
     'global_rank' => 'N/A',
@@ -32,25 +34,22 @@ $recent_activity = [];
 if (!$is_db_connected) {
     $db_error = 'Warning: Database connection failed. Data displayed may be incomplete or default.';
 } else {
-    // --- 1. FETCH PRIMARY USER METRICS ---
+    // --- 1. FETCH PRIMARY USER METRICS (from Student table) ---
     try {
-        // FIXED: Fetches from the new 'students' table using student_id
-        $sql_user = "SELECT username, total_points FROM students WHERE student_id = ?";
+        $sql_user = "SELECT Total_point FROM Student WHERE Student_id = ?";
         if ($stmt_user = $conn->prepare($sql_user)) {
-            $stmt_user->bind_param("i", $user_id);
+            $stmt_user->bind_param("i", $student_id);
             $stmt_user->execute();
             $result_user = $stmt_user->get_result();
             
             if ($data = $result_user->fetch_assoc()) {
-                $username = $data['username'];
-                $user_metrics['total_points'] = $data['total_points'];
+                $user_metrics['total_points'] = $data['Total_point'];
             }
             $stmt_user->close();
         }
 
-        // --- 2. CALCULATE GLOBAL RANK ---
-        // FIXED: This query now correctly looks only at the 'students' table
-        $sql_rank = "SELECT COUNT(*) + 1 AS global_rank FROM students WHERE total_points > ?";
+        // --- 2. CALCULATE GLOBAL RANK (from Student table) ---
+        $sql_rank = "SELECT COUNT(*) + 1 AS global_rank FROM Student WHERE Total_point > ?";
         if ($stmt_rank = $conn->prepare($sql_rank)) {
             $stmt_rank->bind_param("i", $user_metrics['total_points']);
             $stmt_rank->execute();
@@ -62,11 +61,10 @@ if (!$is_db_connected) {
             $stmt_rank->close();
         }
         
-        // --- 3. COUNT TOTAL COMPLETED QUESTS ---
-        // FIXED: Counts from the new 'submissions' table
-        $sql_completed = "SELECT COUNT(*) AS completed_count FROM submissions WHERE user_id = ? AND status = 'completed'";
+        // --- 3. COUNT TOTAL COMPLETED QUESTS (from Student_Quest_Submissions) ---
+        $sql_completed = "SELECT COUNT(*) AS completed_count FROM Student_Quest_Submissions WHERE Student_id = ? AND Status = 'completed'";
         if ($stmt_completed = $conn->prepare($sql_completed)) {
-            $stmt_completed->bind_param("i", $user_id);
+            $stmt_completed->bind_param("i", $student_id);
             $stmt_completed->execute();
             $result_completed = $stmt_completed->get_result();
             if ($data = $result_completed->fetch_assoc()) {
@@ -75,11 +73,10 @@ if (!$is_db_connected) {
             $stmt_completed->close();
         }
 
-        // --- 4. COUNT PENDING SUBMISSIONS ---
-        // FIXED: Counts from the new 'submissions' table
-        $sql_pending = "SELECT COUNT(*) AS pending_count FROM submissions WHERE user_id = ? AND status = 'pending'";
+        // --- 4. COUNT PENDING SUBMISSIONS (from Student_Quest_Submissions) ---
+        $sql_pending = "SELECT COUNT(*) AS pending_count FROM Student_Quest_Submissions WHERE Student_id = ? AND Status = 'pending'";
         if ($stmt_pending = $conn->prepare($sql_pending)) {
-            $stmt_pending->bind_param("i", $user_id);
+            $stmt_pending->bind_param("i", $student_id);
             $stmt_pending->execute();
             $result_pending = $stmt_pending->get_result();
             
@@ -89,30 +86,40 @@ if (!$is_db_connected) {
             $stmt_pending->close();
         }
         
-        // --- 5. FETCH RECENT APPROVED ACTIVITY ---
-        // FIXED: Fetches from the new 'submissions' table
+        // --- 5. COUNT REWARDS REDEEMED (from Redemption_History) ---
+        $sql_rewards = "SELECT COUNT(*) AS rewards_count FROM Redemption_History WHERE Student_id = ?";
+        if ($stmt_rewards = $conn->prepare($sql_rewards)) {
+            $stmt_rewards->bind_param("i", $student_id);
+            $stmt_rewards->execute();
+            $result_rewards = $stmt_rewards->get_result();
+            if ($data = $result_rewards->fetch_assoc()) {
+                $user_metrics['rewards_redeemed'] = $data['rewards_count'];
+            }
+            $stmt_rewards->close();
+        }
+
+        // --- 6. FETCH RECENT APPROVED ACTIVITY (from Student_Quest_Submissions) ---
         $sql_activity = "
             SELECT 
-                q.title AS quest_name, 
-                q.points_award AS points_earned,
-                s.reviewed_at 
-            FROM submissions s
-            INNER JOIN quests q ON s.quest_id = q.quest_id 
+                q.Title AS quest_name, 
+                q.Points_award AS points_earned,
+                s.Review_date 
+            FROM Student_Quest_Submissions s
+            INNER JOIN Quest q ON s.Quest_id = q.Quest_id 
             WHERE 
-                s.user_id = ? 
-                AND s.status = 'completed' 
+                s.Student_id = ? 
+                AND s.Status = 'completed' 
             ORDER BY 
-                s.reviewed_at DESC 
+                s.Review_date DESC 
             LIMIT 3";
             
         if ($stmt_activity = $conn->prepare($sql_activity)) {
-            $stmt_activity->bind_param("i", $user_id);
+            $stmt_activity->bind_param("i", $student_id);
             $stmt_activity->execute();
             $result_activity = $stmt_activity->get_result();
             
             while ($activity = $result_activity->fetch_assoc()) {
-                // Format the date nicely for display
-                $activity['date'] = date('M j, Y', strtotime($activity['reviewed_at'])); 
+                $activity['date'] = $activity['Review_date'] ? date('M j, Y', strtotime($activity['Review_date'])) : 'N/A'; 
                 $recent_activity[] = $activity;
             }
             $stmt_activity->close();
@@ -160,7 +167,7 @@ if (!$is_db_connected) {
                 <div class="icon">🎁</div>
                 <h3>Rewards Redeemed</h3>
                 <p class="metric-value"><?php echo $user_metrics['rewards_redeemed']; ?></p>
-                <a href="rewards.php" class="metric-link">View Redemption History &raquo;</a>
+                <a href="my_rewards.php" class="metric-link">View Redemption History &raquo;</a>
             </div>
         </section>
 
@@ -174,7 +181,7 @@ if (!$is_db_connected) {
                     <a href="validate.php" class="btn-primary">View Submission Status</a>
                 <?php else: ?>
                     <p class="action-status success-status">
-                        All your submitted proofs have been approved or reviewed! Clean slate!
+                        All your submitted proofs have been reviewed! Clean slate!
                     </p>
                     <a href="validate.php" class="btn-secondary">Check Completed Proofs</a>
                 <?php endif; ?>

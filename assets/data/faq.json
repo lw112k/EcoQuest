@@ -1,0 +1,19 @@
+{
+    "questions": [
+      {
+        "id": 1,
+        "question": "How do I earn points?",
+        "answer": "You can earn points by completing quests on the 'Quests' page! Just start a quest, submit your proof, and wait for a moderator to approve it."
+      },
+      {
+        "id": 2,
+        "question": "How long does it take to review my submission?",
+        "answer": "Our moderators usually review submissions within 24 hours. You can check the status on your 'My Submissions' page."
+      },
+      {
+        "id": 3,
+        "question": "Where can I see my claimed rewards?",
+        "answer": "You can see all your claimed rewards on the 'My Rewards' page, which is in the main navigation menu."
+      }
+    ]
+  }

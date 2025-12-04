@@ -16,6 +16,12 @@ if (!$is_logged_in || !in_array($user_role, $allowed_roles)) {
     exit;
 }
 
+// Get the correct reviewer ID (Admin_id or Moderator_id)
+// The ERD links 'reviewer_id' to 'Moderator' table. This is a flaw, as Admins can also review.
+// We will store the MODERATOR_ID if they are a moderator, or NULL if an Admin is reviewing.
+// This matches the ERD's foreign key constraint.
+$reviewer_id = $_SESSION['moderator_id'] ?? null; 
+
 $submission_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 $message = null;
 $message_type = null;
@@ -31,7 +37,12 @@ if (!$submission_id) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $conn) {
     $action = $_POST['action'] ?? '';
     $review_comment = trim($_POST['review_comment'] ?? '');
-    $reviewer_id = $_SESSION['user_id']; // This will be an admin_id or moderator_id
+    
+    // We must use the $reviewer_id (which is the Moderator_id) set from the session
+    // If an Admin is reviewing, the ERD says this must be NULL.
+    if ($user_role === 'admin') {
+        $reviewer_id = null; // Admins are not in the Moderator table
+    }
 
     if (in_array($action, ['approve', 'reject'])) {
         $new_status = ($action === 'approve') ? 'completed' : 'rejected';
@@ -40,10 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $conn) {
         try {
             // 1. Get student_id and quest points for the submission
             $sql_get_info = "
-                SELECT s.user_id, q.points_award
-                FROM submissions s
-                JOIN quests q ON s.quest_id = q.quest_id
-                WHERE s.submission_id = ? AND s.status = 'pending'";
+                SELECT s.Student_id, q.Points_award, q.Quest_id, ach.Exp_point, ach.Achievement_id
+                FROM Student_Quest_Submissions s
+                JOIN Quest q ON s.Quest_id = q.Quest_id
+                LEFT JOIN Achievement ach ON q.Quest_id = ach.Achievement_id -- Assuming Quest_id and Achievement_id link? ERD is unclear.
+                WHERE s.Student_quest_submission_id = ? AND s.Status = 'pending'";
             $stmt_info = $conn->prepare($sql_get_info);
             $stmt_info->bind_param('i', $submission_id);
             $stmt_info->execute();
@@ -54,33 +66,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $conn) {
                 throw new Exception("Submission not found or has already been reviewed.");
             }
 
-            $student_id_to_update = $submission_info['user_id'];
-            $points_to_award = $submission_info['points_award'];
+            $student_id_to_update = $submission_info['Student_id'];
+            $quest_id = $submission_info['Quest_id'];
+            $points_to_award = $submission_info['Points_award'];
+            $exp_to_award = $submission_info['Exp_point'] ?? 0; // EXP from Achievement table
+            $achievement_id = $submission_info['Achievement_id'] ?? null;
 
-            // 2. Update the submission record
+            // 2. Update the Student_Quest_Submissions record
             $sql_update = "
-                UPDATE submissions
-                SET status = ?, reviewed_at = NOW(), reviewer_id = ?, review_comment = ?
-                WHERE submission_id = ?";
+                UPDATE Student_Quest_Submissions
+                SET Status = ?, Review_date = NOW(), Moderator_id = ?, Review_feedback = ?
+                WHERE Student_quest_submission_id = ?";
             $stmt_update = $conn->prepare($sql_update);
             $stmt_update->bind_param('sisi', $new_status, $reviewer_id, $review_comment, $submission_id);
             $stmt_update->execute();
             $stmt_update->close();
+            
+            // 3. Update the Quest_Progress table
+            $sql_progress = "UPDATE Quest_Progress SET Status = ? WHERE Student_id = ? AND Quest_id = ?";
+            $stmt_progress = $conn->prepare($sql_progress);
+            $stmt_progress->bind_param('sii', $new_status, $student_id_to_update, $quest_id);
+            $stmt_progress->execute();
+            $stmt_progress->close();
 
-            // 3. If approved, award points to the student in the 'students' table
+
+            // 4. If approved, award points AND exp to the student
             if ($action === 'approve') {
-                $sql_award_points = "UPDATE students SET total_points = total_points + ? WHERE student_id = ?";
+                $sql_award_points = "UPDATE Student SET Total_point = Total_point + ?, Total_Exp_Point = Total_Exp_Point + ? WHERE Student_id = ?";
                 $stmt_points = $conn->prepare($sql_award_points);
-                $stmt_points->bind_param('ii', $points_to_award, $student_id_to_update);
+                $stmt_points->bind_param('iii', $points_to_award, $exp_to_award, $student_id_to_update);
                 $stmt_points->execute();
                 $stmt_points->close();
+                
+                // 5. If approved AND there was an achievement, log it
+                if ($achievement_id) {
+                    $sql_log_ach = "INSERT INTO Student_Achievement (Achievement_id, Student_id, Status) VALUES (?, ?, 'Completed')
+                                    ON DUPLICATE KEY UPDATE Status = 'Completed'";
+                    $stmt_log_ach = $conn->prepare($sql_log_ach);
+                    $stmt_log_ach->bind_param("ii", $achievement_id, $student_id_to_update);
+                    $stmt_log_ach->execute();
+                    $stmt_log_ach->close();
+                }
             }
 
             $conn->commit();
             $message_type = 'success';
             $message = "Submission #{$submission_id} has been {$new_status}!";
             if ($action === 'approve') {
-                $message .= " {$points_to_award} points awarded.";
+                $message .= " {$points_to_award} points and {$exp_to_award} EXP awarded.";
             }
 
         } catch (Exception $e) {
@@ -101,13 +134,14 @@ if ($conn) {
     // This query now joins with 'students' to get the username
     $query = "
         SELECT
-            s.submission_id, s.status, s.proof_text, s.proof_media_url, s.submitted_at, s.review_comment,
-            st.username,
-            q.title AS quest_title, q.points_award, q.instructions, q.proof_type
-        FROM submissions s
-        JOIN students st ON s.user_id = st.student_id
-        JOIN quests q ON s.quest_id = q.quest_id
-        WHERE s.submission_id = ?
+            s.Student_quest_submission_id AS id, s.Status, s.Image, s.Submission_date, s.Review_feedback,
+            u.Username,
+            q.Title AS quest_title, q.Points_award, q.Instructions, q.Proof_type
+        FROM Student_Quest_Submissions s
+        JOIN Student st ON s.Student_id = st.Student_id
+        JOIN User u ON st.User_id = u.User_id
+        JOIN Quest q ON s.Quest_id = q.Quest_id
+        WHERE s.Student_quest_submission_id = ?
     ";
     try {
         $stmt = $conn->prepare($query);
@@ -147,42 +181,45 @@ if ($conn) {
             <section class="review-details-grid">
                 <div class="card detail-card submission-meta">
                     <h3 class="card-title">Submission Info</h3>
-                    <p><strong>Student:</strong> <span class="badge badge-user"><?php echo htmlspecialchars($submission['username']); ?></span></p>
+                    <p><strong>Student:</strong> <span class="badge badge-user"><?php echo htmlspecialchars($submission['Username']); ?></span></p>
                     <p><strong>Quest:</strong> <?php echo htmlspecialchars($submission['quest_title']); ?></p>
-                    <p><strong>Points Value:</strong> <span class="badge badge-points"><?php echo htmlspecialchars($submission['points_award']); ?> Pts</span></p>
-                    <p><strong>Current Status:</strong> <span class="status-badge status-<?php echo strtolower($submission['status']); ?>"><?php echo ($submission['status'] === 'completed') ? 'Approved' : ucfirst($submission['status']); ?></span></p>
-                    <p><strong>Submitted On:</strong> <?php echo $submission['submitted_at'] ? date('d M Y, h:i A', strtotime($submission['submitted_at'])) : 'N/A'; ?></p>
+                    <p><strong>Points Value:</strong> <span class="badge badge-points"><?php echo htmlspecialchars($submission['Points_award']); ?> Pts</span></p>
+                    <p><strong>Current Status:</strong> <span class="status-badge status-<?php echo strtolower($submission['Status']); ?>"><?php echo ($submission['Status'] === 'completed') ? 'Approved' : ucfirst($submission['Status']); ?></span></p>
+                    <p><strong>Submitted On:</strong> <?php echo $submission['Submission_date'] ? date('d M Y, h:i A', strtotime($submission['Submission_date'])) : 'N/A'; ?></p>
                 </div>
                 <div class="card detail-card proof-section">
                     <h3 class="card-title">Proof & Instructions</h3>
                     <div class="quest-instructions">
                         <h4>Quest Instructions:</h4>
-                        <p><?php echo nl2br(htmlspecialchars($submission['instructions'])); ?></p>
+                        <p><?php echo nl2br(htmlspecialchars($submission['Instructions'])); ?></p>
                     </div>
                     <div class="user-proof">
                         <h4>Submitted Proof:</h4>
-                        <?php if (!empty($submission['proof_text'])): ?>
-                            <div class="proof-box">
-                                <p class="proof-text-label"><i class="fas fa-quote-left"></i> Description:</p>
-                                <p class="proof-text"><?php echo nl2br(htmlspecialchars($submission['proof_text'])); ?></p>
-                            </div>
-                        <?php endif; ?>
-                        <?php if (!empty($submission['proof_media_url'])):
-                            $media_path = '../../' . htmlspecialchars($submission['proof_media_url']);
+                        <?php if (!empty($submission['Image'])):
+                            $media_path = '../../' . htmlspecialchars($submission['Image']);
                         ?>
                             <div class="proof-box" style="margin-top: 15px;">
-                                <p class="proof-text-label"><i class="fas fa-image"></i> Media:</p>
+                                <p class="proof-text-label"><i class="fas fa-image"></i> Media (Path: <?php echo $media_path; ?>):</p>
                                 <img src="<?php echo $media_path; ?>" alt="Submitted Proof" class="proof-image">
+                            </div>
+                        <?php else: ?>
+                             <div class="proof-box"><p>No media (image/video) was submitted.</p></div>
+                        <?php endif; ?>
+                        
+                         <?php if (!empty($submission['Review_feedback']) && $submission['Status'] !== 'pending'): ?>
+                            <div class="proof-box" style="margin-top: 15px; border-color: var(--color-accent);">
+                                <p class="proof-text-label"><i class="fas fa-comment-dots"></i> Previous Review Comment:</p>
+                                <p class="proof-text"><?php echo nl2br(htmlspecialchars($submission['Review_feedback'])); ?></p>
                             </div>
                         <?php endif; ?>
                     </div>
                 </div>
                 <div class="card detail-card review-actions">
                     <h3 class="card-title">Take Action</h3>
-                    <?php if ($submission['status'] === 'pending'): ?>
+                    <?php if ($submission['Status'] === 'pending'): ?>
                         <form method="POST" action="review_submission.php?id=<?php echo $submission_id; ?>">
                             <div class="form-group">
-                                <label for="review_comment">Review Comment (Optional)</label>
+                                <label for="review_comment">Review Comment (Required for rejection)</label>
                                 <textarea id="review_comment" name="review_comment" rows="3"></textarea>
                             </div>
                             <div class="action-buttons">

@@ -5,12 +5,12 @@ include("../config/db.php");
 include("../includes/header.php");
 
 // Only logged-in students can create posts
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-    header("Location: login.php");
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student' || !isset($_SESSION['student_id'])) {
+    header("Location: sign_up.php");
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$student_id = $_SESSION['student_id'];
 $error_message = '';
 $success_message = '';
 
@@ -26,9 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Insert the new post into the database
         if (isset($conn) && !$conn->connect_error) {
             try {
-                $sql = "INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)";
+                // UPDATED: Insert into Post table with Student_id
+                $sql = "INSERT INTO Post (Student_id, Title, Content, Created_at) VALUES (?, ?, ?, NOW())";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("iss", $user_id, $title, $content);
+                $stmt->bind_param("iss", $student_id, $title, $content);
 
                 if ($stmt->execute()) {
                     $success_message = 'Your post has been published successfully!';

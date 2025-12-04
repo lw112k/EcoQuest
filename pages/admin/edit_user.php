@@ -8,7 +8,7 @@ require_once '../../includes/header.php';
 $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
 
-if (!$is_logged_in || $user_role !== 'admin') {
+if (!$is_logged_in || $user_role !== 'admin' || !isset($_SESSION['admin_id'])) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }
@@ -16,20 +16,13 @@ if (!$is_logged_in || $user_role !== 'admin') {
 $errors = [];
 $success_message = null;
 
-// Get user ID and ROLE from URL parameter (CRITICAL)
-$user_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
-$role_to_edit = filter_input(INPUT_GET, 'role', FILTER_SANITIZE_SPECIAL_CHARS);
-$valid_roles = ['student', 'moderator', 'admin'];
+// Get user ID from URL parameter (CRITICAL)
+$user_id_to_edit = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
-if (!$user_id || !in_array($role_to_edit, $valid_roles)) {
-    header('Location: manage_users.php?error=invalid_user_data');
+if (!$user_id_to_edit) {
+    header('Location: manage_users.php?error=invalid_user_id');
     exit;
 }
-
-// --- Determine correct table based on the role from the URL ---
-$table_name = $role_to_edit . 's';
-$id_column = $role_to_edit . '_id';
-
 
 // =======================================================
 // 2. FORM SUBMISSION HANDLING (POST)
@@ -42,27 +35,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Validation
     if (empty($username) || empty($email)) {
-        $errors['validation'] = 'Username and Email cannot be empty.';
+        $errors[] = 'Username and Email cannot be empty.';
     }
     if (!empty($password) && strlen($password) < 8) {
-        $errors['password'] = 'New password must be at least 8 characters long.';
+        $errors[] = 'New password must be at least 8 characters long.';
     }
     if ($password !== $confirm_password) {
-        $errors['confirm_password'] = 'New passwords do not match.';
+        $errors[] = 'New passwords do not match.';
     }
 
-    // --- Database Update ---
+    // --- Database Update (User Table) ---
     if (empty($errors) && isset($conn)) {
         try {
-            // Base SQL query for updating non-password fields
-            $sql = "UPDATE {$table_name} SET username = ?, email = ? WHERE {$id_column} = ?";
-            $params = [$username, $email, $user_id];
+            // Base SQL query for non-password fields
+            $sql = "UPDATE User SET Username = ?, Email = ? WHERE User_id = ?";
+            $params = [$username, $email, $user_id_to_edit];
             $types = "ssi";
 
-            // If a new password was provided, modify the SQL
+            // If a new password was provided, add it to the query
             if (!empty($password)) {
-                $sql = "UPDATE {$table_name} SET username = ?, email = ?, password = ? WHERE {$id_column} = ?";
-                $params = [$username, $email, $password, $user_id];
+                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $sql = "UPDATE User SET Username = ?, Email = ?, Password_hash = ? WHERE User_id = ?";
+                $params = [$username, $email, $password_hash, $user_id_to_edit];
                 $types = "sssi";
             }
             
@@ -71,14 +65,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             $stmt->bind_param($types, ...$params);
             if ($stmt->execute()) {
-                $success_message = "User '{$username}' (ID: {$user_id}) successfully updated!";
+                $success_message = "User '{$username}' (ID: {$user_id_to_edit}) successfully updated!";
             } else {
+                 if ($conn->errno == 1062) { // Duplicate key
+                    throw new Exception("Update Failed: That Username or Email is already taken.");
+                }
                 throw new Exception("Execution Failed: " . $stmt->error);
             }
             $stmt->close();
             
         } catch (Exception $e) {
-            $errors['db_error'] = "Database update failed. Details: " . $e->getMessage();
+            $errors[] = "Database update failed. Details: " . $e->getMessage();
         }
     }
 }
@@ -89,9 +86,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $form_data = null;
 if (isset($conn)) {
     try {
-        $sql_fetch = "SELECT username, email FROM {$table_name} WHERE {$id_column} = ?";
+        $sql_fetch = "SELECT Username, Email, Role FROM User WHERE User_id = ?";
         $stmt_fetch = $conn->prepare($sql_fetch);
-        $stmt_fetch->bind_param("i", $user_id);
+        $stmt_fetch->bind_param("i", $user_id_to_edit);
         $stmt_fetch->execute();
         $form_data = $stmt_fetch->get_result()->fetch_assoc();
         $stmt_fetch->close();
@@ -101,10 +98,10 @@ if (isset($conn)) {
             exit;
         }
     } catch (Exception $e) {
-        $errors['db_error'] = "Failed to load user data: " . $e->getMessage();
+        $errors[] = "Failed to load user data: " . $e->getMessage();
     }
 } else {
-    $errors['db_error'] = "Database connection unavailable.";
+    $errors[] = "Database connection unavailable.";
 }
 ?>
 
@@ -114,8 +111,8 @@ if (isset($conn)) {
             &laquo; Back to User List
         </a>
         
-        <h1 class="auth-title mt-4">Edit User (ID: <?php echo htmlspecialchars($user_id); ?>)</h1>
-        <p class="auth-subtitle">Updating a '<?php echo htmlspecialchars($role_to_edit); ?>' account.</p>
+        <h1 class="auth-title mt-4">Edit User (ID: <?php echo htmlspecialchars($user_id_to_edit); ?>)</h1>
+        <p class="auth-subtitle">Updating a '<?php echo htmlspecialchars($form_data['Role'] ?? 'N/A'); ?>' account.</p>
 
         <?php if ($success_message): ?>
             <div class="message success-message"><?php echo htmlspecialchars($success_message); ?></div>
@@ -128,18 +125,18 @@ if (isset($conn)) {
         <?php endif; ?>
         
         <?php if ($form_data): ?>
-        <form method="POST" action="edit_user.php?id=<?php echo $user_id; ?>&role=<?php echo $role_to_edit; ?>" class="auth-form">
+        <form method="POST" action="edit_user.php?id=<?php echo $user_id_to_edit; ?>" class="auth-form">
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($form_data['username']); ?>" required>
+                <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($form_data['Username']); ?>" required>
             </div>
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($form_data['email']); ?>" required>
+                <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($form_data['Email']); ?>" required>
             </div>
             
             <hr style="border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="text-align: center;">Leave password fields blank to keep the current password.</p>
+            <p style="text-align: center;"><b>Admin Password Reset</b><br>Leave fields blank to keep current password.</p>
 
             <div class="form-group">
                 <label for="password">New Password</label>

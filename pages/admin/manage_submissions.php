@@ -9,7 +9,7 @@ $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
 $conn = $conn ?? null;
 
-if (!$is_logged_in || $user_role !== 'admin') {
+if (!$is_logged_in || $user_role !== 'admin' || !isset($_SESSION['admin_id'])) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }
@@ -27,33 +27,35 @@ if (!in_array($filter_status, $valid_statuses)) {
     $filter_status = 'pending';
 }
 
-// Construct the query to get data from the new 'submissions' and 'students' tables
+// Construct the query
 $query = "
     SELECT
-        s.submission_id,
-        st.username,
-        q.title AS quest_title,
-        q.points_award,
-        s.status,
-        s.submitted_at
+        s.Student_quest_submission_id,
+        u.Username,
+        q.Title AS quest_title,
+        q.Points_award,
+        s.Status,
+        s.Submission_date
     FROM
-        submissions s
+        Student_Quest_Submissions s
     JOIN
-        students st ON s.user_id = st.student_id -- THIS LINE IS FIXED
+        Student st ON s.Student_id = st.Student_id
     JOIN
-        quests q ON s.quest_id = q.quest_id
+        User u ON st.User_id = u.User_id
+    JOIN
+        Quest q ON s.Quest_id = q.Quest_id
 ";
 
 $params = [];
 $types = '';
 
 if ($filter_status !== 'all') {
-    $query .= " WHERE s.status = ?";
+    $query .= " WHERE s.Status = ?";
     $params[] = $filter_status;
     $types .= 's';
 }
 
-$query .= " ORDER BY s.submitted_at DESC";
+$query .= " ORDER BY s.Submission_date DESC";
 
 if (!$conn) {
     $error_message = "Database connection failed.";
@@ -134,21 +136,21 @@ if (!$conn) {
                         <tbody>
                             <?php foreach ($submissions as $submission): ?>
                                 <tr>
-                                    <td data-label="ID"><?php echo htmlspecialchars($submission['submission_id']); ?></td>
-                                    <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['username']); ?></td>
+                                    <td data-label="ID"><?php echo htmlspecialchars($submission['Student_quest_submission_id']); ?></td>
+                                    <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['Username']); ?></td>
                                     <td data-label="Quest Title"><?php echo htmlspecialchars($submission['quest_title']); ?></td>
-                                    <td data-label="Points"><?php echo htmlspecialchars($submission['points_award']); ?> Pts</td>
+                                    <td data-label="Points"><?php echo htmlspecialchars($submission['Points_award']); ?> Pts</td>
                                     <td data-label="Status">
-                                        <span class="status-badge status-<?php echo strtolower($submission['status']); ?>">
-                                            <?php echo ($submission['status'] === 'completed') ? 'Approved' : ucfirst($submission['status']); ?>
+                                        <span class="status-badge status-<?php echo strtolower($submission['Status']); ?>">
+                                            <?php echo ($submission['Status'] === 'completed') ? 'Approved' : ucfirst($submission['Status']); ?>
                                         </span>
                                     </td>
                                     <td data-label="Submitted On">
-                                        <?php echo $submission['submitted_at'] ? date('d M Y, h:i A', strtotime($submission['submitted_at'])) : 'N/A'; ?>
+                                        <?php echo $submission['Submission_date'] ? date('d M Y, h:i A', strtotime($submission['Submission_date'])) : 'N/A'; ?>
                                     </td>
                                     <td data-label="Action">
-                                        <a href="review_submission.php?id=<?php echo $submission['submission_id']; ?>" class="btn btn-sm btn-primary">
-                                            <?php echo ($submission['status'] == 'pending') ? 'Review Now' : 'View Details'; ?>
+                                        <a href="review_submission.php?id=<?php echo $submission['Student_quest_submission_id']; ?>" class="btn btn-sm btn-primary">
+                                            <?php echo ($submission['Status'] == 'pending') ? 'Review Now' : 'View Details'; ?>
                                         </a>
                                     </td>
                                 </tr>
@@ -166,5 +168,64 @@ if (!$conn) {
         </section>
     </div>
 </main>
+
+<style>
+    /* NOTE: These styles augment the main style.css to ensure specific table and filter components are responsive on this page. */
+
+    /* Global classes used in the PHP above that need basic definition if missing */
+    .admin-data-table { width: 100%; border-collapse: collapse; }
+    .admin-data-table th, .admin-data-table td { padding: 12px 15px; text-align: left; }
+    .admin-data-table thead th { background-color: #E6F3EE; color: #1D4C43; font-weight: 700; font-size: 0.9rem; text-transform: uppercase; }
+    .table-responsive { overflow-x: auto; }
+
+    /* Mobile Responsive Table Transformation */
+    @media (max-width: 768px) {
+        /* Filter Navigation Stacking */
+        .submission-filter-nav {
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .submission-filter-nav a {
+            flex: 1 1 auto; /* Allow buttons to wrap and take up space */
+            text-align: center;
+            min-width: 120px;
+        }
+
+        /* Card Transformation */
+        .admin-data-table thead {
+            display: none;
+        }
+        .admin-data-table, .admin-data-table tbody, .admin-data-table tr, .admin-data-table td {
+            display: block;
+            width: 100%;
+        }
+        .admin-data-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DDEEE5;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .admin-data-table td {
+            text-align: right;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+        .admin-data-table td:last-child {
+            border-bottom: none;
+        }
+        .admin-data-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: calc(50% - 30px);
+            text-align: left;
+            font-weight: 600;
+            color: #1D4C43;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+    }
+</style>
 
 <?php require_once '../../includes/footer.php'; ?>

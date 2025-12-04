@@ -1,6 +1,5 @@
 <?php
 // pages/quest_detail.php
-// REBUILT to use the single 'submissions' table.
 session_start();
 
 // --- DB Connection and Dependencies ---
@@ -8,12 +7,12 @@ include("../config/db.php");
 include("../includes/header.php");
 
 // Check if user is logged in and is a student
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-    header("Location: login.php");
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['student_id'])) {
+    header("Location: sign_up.php");
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$student_id = $_SESSION['student_id'];
 $db_error = '';
 $quest = null;
 $user_quest_status = 'New'; // Default status if no record exists
@@ -33,36 +32,60 @@ if (!$is_db_connected) {
 }
 
 // --- POST HANDLER: "START QUEST" ACTION (REBUILT) ---
-// This now inserts the initial 'active' record into the new submissions table.
+// This now inserts an 'active' record into the Quest_Progress table.
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action']) && $_POST['action'] === 'start_quest') {
-    // A simple INSERT. The UNIQUE key on (user_id, quest_id) will prevent duplicates.
-    $sql_start = "INSERT INTO submissions (user_id, quest_id, status) VALUES (?, ?, 'active')";
-
-    if ($stmt_start = $conn->prepare($sql_start)) {
-        $stmt_start->bind_param("ii", $user_id, $quest_id);
-
-        if ($stmt_start->execute()) {
-            // Success! Redirect to the same page (GET request) to show the new status and the submit form.
-            header("Location: quest_detail.php?id=$quest_id&msg=Quest started! You can now submit your proof.");
-            exit();
-        } else {
-            // This error will trigger if the user has already started this quest (due to UNIQUE key)
-            if ($conn->errno == 1062) { // 1062 is the error code for a duplicate entry
-                 $db_error = 'You have already started this quest.';
-            } else {
-                 $db_error = 'Database error starting quest: ' . $stmt_start->error;
-            }
-        }
-        $stmt_start->close();
+    
+    // Check if a submission already exists. If so, don't let them start.
+    $sql_check_sub = "SELECT Student_quest_submission_id FROM Student_Quest_Submissions WHERE Student_id = ? AND Quest_id = ? AND Status IN ('pending', 'completed', 'approved')";
+    $stmt_check_sub = $conn->prepare($sql_check_sub);
+    $stmt_check_sub->bind_param("ii", $student_id, $quest_id);
+    $stmt_check_sub->execute();
+    $result_check_sub = $stmt_check_sub->get_result();
+    
+    if ($result_check_sub->num_rows > 0) {
+        $db_error = 'You have already submitted this quest and it is pending or completed.';
     } else {
-        $db_error = 'Database query preparation failed for starting quest.';
+        // No submission, so let's start it in Quest_Progress
+        // Use INSERT ... ON DUPLICATE KEY UPDATE to handle if they already started it.
+        $sql_start = "
+            INSERT INTO Quest_Progress (Student_id, Quest_id, Status) 
+            VALUES (?, ?, 'active')
+            ON DUPLICATE KEY UPDATE Status = 'active'
+        ";
+
+        if ($stmt_start = $conn->prepare($sql_start)) {
+            $stmt_start->bind_param("ii", $student_id, $quest_id);
+
+            if ($stmt_start->execute()) {
+                // If they had a 'rejected' submission, we must delete it so they can resubmit
+                $conn->query("DELETE FROM Student_Quest_Submissions WHERE Student_id = $student_id AND Quest_id = $quest_id AND Status = 'rejected'");
+                
+                header("Location: quest_detail.php?id=$quest_id&msg=Quest started! You can now submit your proof.");
+                exit();
+            } else {
+                $db_error = 'Database error starting quest: ' . $stmt_start->error;
+            }
+            $stmt_start->close();
+        } else {
+            $db_error = 'Database query preparation failed for starting quest.';
+        }
     }
+    $stmt_check_sub->close();
 }
 
 // --- FETCH QUEST DETAILS AND USER STATUS (UPDATED) ---
 try {
-    // A. Fetch the main quest details from the 'quests' table
-    $sql_quest = "SELECT quest_id, title, description, points_award, category, proof_type, instructions FROM quests WHERE quest_id = ?";
+    // A. Fetch the main quest details (SQL FIXED)
+    $sql_quest = "
+        SELECT 
+            q.Quest_id, q.Title, q.Description, q.Points_award, 
+            qc.Category_Name, 
+            q.Proof_type, q.Instructions 
+        FROM Quest q
+        LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID
+        WHERE q.Quest_id = ?
+    ";
+    
     if ($stmt_quest = $conn->prepare($sql_quest)) {
         $stmt_quest->bind_param("i", $quest_id);
         $stmt_quest->execute();
@@ -74,19 +97,32 @@ try {
     }
 
     if ($quest) {
-        // B. Check user's status for this quest from the NEW 'submissions' table
-        $sql_status = "SELECT status FROM submissions WHERE user_id = ? AND quest_id = ?";
-        if ($stmt_status = $conn->prepare($sql_status)) {
-            $stmt_status->bind_param("ii", $user_id, $quest_id);
-            $stmt_status->execute();
-            $result_status = $stmt_status->get_result();
+        // B. Check user's status for this quest
+        $user_quest_status = 'New'; // Default
+        
+        // Check submission table first (priority)
+        $sql_status_sub = "SELECT Status FROM Student_Quest_Submissions WHERE Student_id = ? AND Quest_id = ?";
+        $stmt_status_sub = $conn->prepare($sql_status_sub);
+        $stmt_status_sub->bind_param("ii", $student_id, $quest_id);
+        $stmt_status_sub->execute();
+        $data_sub = $stmt_status_sub->get_result()->fetch_assoc();
+        $stmt_status_sub->close();
 
-            if ($data = $result_status->fetch_assoc()) {
-                // An entry exists, so the user has started it. Status can be 'active', 'pending', 'completed', or 'rejected'.
-                $user_quest_status = $data['status'];
+        if ($data_sub) {
+            $user_quest_status = strtolower($data_sub['Status']); // 'pending', 'completed', 'approved', 'rejected'
+            if ($user_quest_status == 'approved') $user_quest_status = 'completed';
+        } else {
+            // If no submission, check progress table
+            $sql_status_prog = "SELECT Status FROM Quest_Progress WHERE Student_id = ? AND Quest_id = ?";
+            $stmt_status_prog = $conn->prepare($sql_status_prog);
+            $stmt_status_prog->bind_param("ii", $student_id, $quest_id);
+            $stmt_status_prog->execute();
+            $data_prog = $stmt_status_prog->get_result()->fetch_assoc();
+            $stmt_status_prog->close();
+
+            if ($data_prog) {
+                $user_quest_status = strtolower($data_prog['Status']); // 'active'
             }
-            // If no data is found, the status remains 'New'.
-            $stmt_status->close();
         }
     } else {
         $db_error = 'Error: Quest not found or is inactive.';
@@ -111,27 +147,27 @@ display_page: // Goto marker for showing the page content
         <?php if ($quest): ?>
             <div class="quest-summary-card">
                 <a href="quests.php" class="back-link">&laquo; Back to All Quests</a>
-                <span class="quest-category-tag"><?php echo htmlspecialchars($quest['category']); ?></span>
-                <h1 class="quest-title"><?php echo htmlspecialchars($quest['title']); ?></h1>
+                <span class="quest-category-tag"><?php echo htmlspecialchars($quest['Category_Name'] ?? 'General'); ?></span>
+                <h1 class="quest-title"><?php echo htmlspecialchars($quest['Title']); ?></h1>
                 <div class="quest-metrics">
-                    <span class="points-badge">💰 +<?php echo number_format($quest['points_award']); ?> PTS</span>
-                    <span class="proof-badge">📋 Proof Type: <?php echo htmlspecialchars(ucfirst($quest['proof_type'])); ?></span>
+                    <span class="points-badge">💰 +<?php echo number_format($quest['Points_award']); ?> PTS</span>
+                    <span class="proof-badge">📷 Proof Type: <?php echo htmlspecialchars(ucfirst($quest['Proof_type'])); ?></span>
                 </div>
-                <p class="quest-description"><?php echo htmlspecialchars($quest['description']); ?></p>
+                <p class="quest-description"><?php echo htmlspecialchars($quest['Description']); ?></p>
             </div>
 
             <div class="quest-content-grid">
                 <div class="quest-instructions-guide">
                     <h2>Mission Instructions</h2>
                     <div class="instructions-box">
-                        <?php echo nl2br(htmlspecialchars($quest['instructions'])); ?>
+                        <?php echo nl2br(htmlspecialchars($quest['Instructions'])); ?>
                     </div>
                 </div>
 
                 <div class="quest-submission-area">
                     <?php if ($user_quest_status === 'completed'): ?>
                         <div class="status-box completed-box">
-                            <h2>Status: Completed! 🎉</h2>
+                            <h2>Status: Completed! 脂</h2>
                             <p>You have successfully completed this quest. Keep up the great work!</p>
                             <a href="quests.php" class="btn-secondary">Find New Quests</a>
                         </div>
@@ -143,14 +179,24 @@ display_page: // Goto marker for showing the page content
                             <a href="quests.php" class="btn-secondary">Back to Quests</a>
                         </div>
 
-                    <?php elseif ($user_quest_status === 'New'): ?>
+                    <?php elseif ($user_quest_status === 'New' || $user_quest_status === 'rejected'): ?>
                         <div class="status-box new-box">
-                            <h2>Ready to Commit?</h2>
-                            <p>Press 'Start Quest' to accept this mission. You can submit your proof after starting.</p>
-                            <form method="POST" action="quest_detail.php?id=<?php echo $quest_id; ?>">
-                                <input type="hidden" name="action" value="start_quest">
-                                <button type="submit" class="btn-primary">Start Quest! 🚀</button>
-                            </form>
+                            <?php if ($user_quest_status === 'rejected'): ?>
+                                <h2 style="color: var(--color-error);">Status: Rejected 閥</h2>
+                                <p>Your last submission was rejected. Press 'Start Over' to clear it and try again.</p>
+                                <form method="POST" action="quest_detail.php?id=<?php echo $quest_id; ?>">
+                                    <input type="hidden" name="action" value="start_quest">
+                                    <button type="submit" class="btn-primary" style="background-color: var(--color-error);">Start Over 
+                                    </button>
+                                </form>
+                            <?php else: ?>
+                                <h2>Ready to Commit?</h2>
+                                <p>Press 'Start Quest' to accept this mission. You can submit your proof after starting.</p>
+                                <form method="POST" action="quest_detail.php?id=<?php echo $quest_id; ?>">
+                                    <input type="hidden" name="action" value="start_quest">
+                                    <button type="submit" class="btn-primary">Start Quest! 🚀</button>
+                                </form>
+                            <?php endif; ?>
                         </div>
 
                     <?php elseif ($user_quest_status === 'active'): ?>
@@ -158,13 +204,6 @@ display_page: // Goto marker for showing the page content
                             <h2>Submit Proof Now</h2>
                             <p>You have started this quest! Once you finish the mission, head to the submission page.</p>
                             <a href="validate.php" class="btn-primary">Submit Quest Proof</a>
-                        </div>
-
-                    <?php elseif ($user_quest_status === 'rejected'): ?>
-                        <div class="status-box" style="border-color: var(--color-error);">
-                            <h2 style="color: var(--color-error);">Status: Rejected 🔴</h2>
-                            <p>Your previous submission was rejected. You can try submitting again.</p>
-                             <a href="validate.php" class="btn-primary">Re-Submit Proof</a>
                         </div>
                     <?php endif; ?>
                 </div>

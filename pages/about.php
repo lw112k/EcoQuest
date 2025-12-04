@@ -61,7 +61,7 @@ $team_members = [
             <h2>Contact & Resources</h2>
             <p>Got questions or found a bug? Please report it to our system administrator:</p>
             <p>Email: <a href="mailto:admin@ecoquest.apu.my">admin@ecoquest.apu.my</a></p>
-            <p>Code Version: Alpha 2.0 (RWDD September 2025)</p>
+            <p>Code Version: Alpha 3.0 (RWDD September 2025)</p>
         </section>
 
     </div>

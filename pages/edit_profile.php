@@ -6,33 +6,12 @@ include("../includes/header.php");
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+    header("Location: sign_up.php");
     exit();
 }
 
-// --- Determine correct table based on user role ---
 $current_user_id = $_SESSION['user_id'];
 $current_user_role = $_SESSION['user_role'];
-$table_name = '';
-$id_column = '';
-
-switch ($current_user_role) {
-    case 'student':
-        $table_name = 'students';
-        $id_column = 'student_id';
-        break;
-    case 'moderator':
-        $table_name = 'moderators';
-        $id_column = 'moderator_id';
-        break;
-    case 'admin':
-        $table_name = 'admins';
-        $id_column = 'admin_id';
-        break;
-    default:
-        // If role is invalid, stop the script
-        die("Invalid user role detected.");
-}
 
 $db_error = '';
 $message = '';
@@ -55,7 +34,7 @@ if (!isset($conn) || $conn->connect_error) {
             $proceed_update = false;
         }
 
-        // --- Handle Password Change (Using plain text check to match your login system) ---
+        // --- Handle Password Change (NEW: Using password_verify) ---
         if ($proceed_update && !empty($new_password)) {
             if (empty($current_password)) {
                 $message = ['type' => 'error', 'text' => 'Must enter current password to change it!'];
@@ -64,43 +43,45 @@ if (!isset($conn) || $conn->connect_error) {
                 $message = ['type' => 'error', 'text' => 'New password and confirm password do not match.'];
                 $proceed_update = false;
             } else {
-                // Verify Current Password from the correct table
-                $verify_sql = "SELECT password FROM {$table_name} WHERE {$id_column} = ?";
+                // Verify Current Password from the User table
+                $verify_sql = "SELECT Password_hash FROM User WHERE User_id = ?";
                 $v_stmt = $conn->prepare($verify_sql);
                 $v_stmt->bind_param("i", $current_user_id);
                 $v_stmt->execute();
                 $user_record = $v_stmt->get_result()->fetch_assoc();
                 $v_stmt->close();
 
-                // Direct string comparison, consistent with your login.php
-                if (!$user_record || $current_password !== $user_record['password']) {
+                // Use password_verify to check
+                if (!$user_record || !password_verify($current_password, $user_record['Password_hash'])) {
                     $message = ['type' => 'error', 'text' => 'The current password you entered is incorrect.'];
                     $proceed_update = false;
                 }
             }
         }
 
-        // --- Execute Update ---
+        // --- Execute Update (on User table) ---
         if ($proceed_update) {
-            $update_parts = ["username = ?", "email = ?"];
+            $update_parts = ["Username = ?", "Email = ?"];
             $bind_types = 'ss';
             $bind_params = [$username, $email];
             
             if (!empty($new_password)) {
-                $update_parts[] = "password = ?";
+                // Hash the new password
+                $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+                $update_parts[] = "Password_hash = ?";
                 $bind_types .= 's';
-                $bind_params[] = $new_password;
+                $bind_params[] = $new_password_hash;
             }
 
             $set_clause = implode(', ', $update_parts);
-            $sql_update = "UPDATE {$table_name} SET {$set_clause} WHERE {$id_column} = ?";
+            $sql_update = "UPDATE User SET {$set_clause} WHERE User_id = ?";
             $bind_types .= 'i';
             $bind_params[] = $current_user_id;
 
             if ($u_stmt = $conn->prepare($sql_update)) {
                 $u_stmt->bind_param($bind_types, ...$bind_params);
                 if ($u_stmt->execute()) {
-                    $_SESSION['username'] = $username;
+                    $_SESSION['username'] = $username; // Update session username
                     $message = ['type' => 'success', 'text' => 'Profile updated successfully!'];
                 } else {
                     $message = ['type' => 'error', 'text' => 'Database update failed: ' . $u_stmt->error];
@@ -113,7 +94,7 @@ if (!isset($conn) || $conn->connect_error) {
     }
 
     // --- FETCH CURRENT USER DATA (for form display) ---
-    $sql_fetch = "SELECT username, email FROM {$table_name} WHERE {$id_column} = ?";
+    $sql_fetch = "SELECT Username, Email FROM User WHERE User_id = ?";
     if ($f_stmt = $conn->prepare($sql_fetch)) {
         $f_stmt->bind_param("i", $current_user_id);
         if ($f_stmt->execute()) {
@@ -149,11 +130,11 @@ if (!isset($conn) || $conn->connect_error) {
                     <h3 style="margin-top: 0;"><i class="fas fa-id-card"></i> Basic Information</h3>
                     <div class="form-group">
                         <label for="username">Username</label>
-                        <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user_data['username']); ?>" required>
+                        <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user_data['Username']); ?>" required>
                     </div>
                     <div class="form-group">
                         <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user_data['email']); ?>" required>
+                        <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user_data['Email']); ?>" required>
                     </div>
 
                     <h3><i class="fas fa-lock"></i> Change Password (Optional)</h3>

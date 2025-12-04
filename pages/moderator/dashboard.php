@@ -8,15 +8,15 @@ require_once '../../includes/header.php';
 $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
 $conn = $conn ?? null;
-$moderator_id = $_SESSION['user_id'] ?? null;
+$moderator_id = $_SESSION['moderator_id'] ?? null; // Use the correct session ID
 
-if (!$is_logged_in || !in_array($user_role, ['moderator', 'admin'])) {
+if (!$is_logged_in || !in_array($user_role, ['moderator', 'admin']) || !$moderator_id) {
     header('Location: ../../index.php?error=unauthorized_mod');
     exit;
 }
 
 // =======================================================
-// 2. DATA FETCHING (Moderator Stats)
+// 2. DATA FETCHING (Moderator Stats) - UPDATED
 // =======================================================
 $stats = [
     'pending' => 0,
@@ -32,20 +32,20 @@ if (!$conn) {
 } else {
     try {
         // 1. Total pending submissions
-        $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM submissions WHERE status = 'pending'");
+        $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM Student_Quest_Submissions WHERE Status = 'pending'");
         $stmt->execute();
         $stats['pending'] = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
         $stmt->close();
 
         // 2. Submissions approved today by this moderator
-        $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM submissions WHERE reviewer_id = ? AND status = 'completed' AND DATE(reviewed_at) = CURDATE()");
+        $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM Student_Quest_Submissions WHERE Moderator_id = ? AND Status = 'completed' AND DATE(Review_date) = CURDATE()");
         $stmt->bind_param("i", $moderator_id);
         $stmt->execute();
         $stats['approved_today'] = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
         $stmt->close();
 
         // 3. Total submissions reviewed by this moderator
-        $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM submissions WHERE reviewer_id = ? AND status IN ('completed', 'rejected')");
+        $stmt = $conn->prepare("SELECT COUNT(*) AS total FROM Student_Quest_Submissions WHERE Moderator_id = ? AND Status IN ('completed', 'rejected')");
         $stmt->bind_param("i", $moderator_id);
         $stmt->execute();
         $stats['total_reviewed'] = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
@@ -53,12 +53,13 @@ if (!$conn) {
 
         // 4. Fetch recent pending submissions (Oldest First)
         $stmt = $conn->prepare("
-            SELECT s.submission_id, st.username, q.title AS quest_title, s.submitted_at
-            FROM submissions s
-            JOIN students st ON s.user_id = st.student_id
-            JOIN quests q ON s.quest_id = q.quest_id
-            WHERE s.status = 'pending'
-            ORDER BY s.submitted_at ASC
+            SELECT s.Student_quest_submission_id, u.Username, q.Title AS quest_title, s.Submission_date
+            FROM Student_Quest_Submissions s
+            JOIN Student st ON s.Student_id = st.Student_id
+            JOIN User u ON st.User_id = u.User_id
+            JOIN Quest q ON s.Quest_id = q.Quest_id
+            WHERE s.Status = 'pending'
+            ORDER BY s.Submission_date ASC
             LIMIT 5
         ");
         $stmt->execute();
@@ -126,11 +127,11 @@ if (!$conn) {
                         <tbody>
                         <?php foreach ($recent_submissions as $submission): ?>
                             <tr>
-                                <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['username']); ?></td>
+                                <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['Username']); ?></td>
                                 <td data-label="Quest"><?php echo htmlspecialchars($submission['quest_title']); ?></td>
-                                <td data-label="Submitted On"><?php echo date('d M Y, h:i A', strtotime($submission['submitted_at'])); ?></td>
+                                <td data-label="Submitted On"><?php echo date('d M Y, h:i A', strtotime($submission['Submission_date'])); ?></td>
                                 <td data-label="Action">
-                                    <a href="review_submission.php?id=<?php echo $submission['submission_id']; ?>" class="btn btn-sm btn-primary">Review Details</a>
+                                    <a href="review_submission.php?id=<?php echo $submission['Student_quest_submission_id']; ?>" class="btn btn-sm btn-primary">Review Details</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

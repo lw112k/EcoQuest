@@ -1,134 +1,111 @@
 <?php
 // pages/admin/create_quest.php
-// Allows an administrator to create a new quest and save it to the database.
-
-// --- Include header/config ---
 require_once '../../includes/header.php'; 
 
-// =======================================================
-// 1. AUTHORIZATION CHECK & INITIALIZATION
-// =======================================================
+// 1. AUTHORIZATION CHECK
 $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
-$user_id = $_SESSION['user_id'] ?? null; // Get the currently logged-in admin's ID
+$admin_id = $_SESSION['admin_id'] ?? null; // Get the currently logged-in admin's ID
 
-// Only allow access if the user is logged in AND is an admin
-if (!$is_logged_in || $user_role !== 'admin' || !$user_id) {
+if (!$is_logged_in || $user_role !== 'admin' || !$admin_id) {
     header('Location: ../../index.php?error=unauthorized'); 
     exit;
 }
 
-// Initialize messages and form data (for sticky form fields)
 $success_message = null;
 $error_message = null;
 $form_data = [
     'title' => '',
     'description' => '',
     'points_award' => '',
-    'category' => 'Plastic Use',
-    'proof_type' => 'Image',
+    'CategoryID' => '', // Use CategoryID from previous fix
+    'proof_type' => 'Image', // <-- LOCKED
     'instructions' => '',
-    'is_active' => '1',
+    'is_active' => 1,
 ];
 
-// Defined categories and proof types based on your schema
-$categories = ['Plastic Use', 'Energy Saving', 'Sustainable Transport', 'General'];
-$proof_types = ['Image', 'Text/Log', 'Both'];
+// --- Load categories from database ---
+$categories_from_db = [];
+if (isset($conn) && $conn) {
+    try {
+        $result = $conn->query("SELECT CategoryID, Category_Name FROM Quest_Categories ORDER BY Category_Name ASC");
+        while ($row = $result->fetch_assoc()) {
+            $categories_from_db[] = $row;
+        }
+    } catch (Exception $e) {
+        $error_message = "Failed to load categories: " . $e->getMessage();
+    }
+}
+// $proof_types = ['Image', 'Text/Log', 'Both']; // <-- REMOVED
 
-// =======================================================
 // 2. HANDLE FORM SUBMISSION
-// =======================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Collect and sanitize form inputs
     $form_data['title'] = filter_input(INPUT_POST, 'title', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['description'] = filter_input(INPUT_POST, 'description', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['points_award'] = filter_input(INPUT_POST, 'points_award', FILTER_VALIDATE_INT);
-    $form_data['category'] = filter_input(INPUT_POST, 'category', FILTER_SANITIZE_SPECIAL_CHARS);
-    $form_data['proof_type'] = filter_input(INPUT_POST, 'proof_type', FILTER_SANITIZE_SPECIAL_CHARS);
+    $form_data['CategoryID'] = filter_input(INPUT_POST, 'CategoryID', FILTER_VALIDATE_INT);
+    $form_data['proof_type'] = 'Image'; // <-- LOCKED VALUE
     $form_data['instructions'] = filter_input(INPUT_POST, 'instructions', FILTER_SANITIZE_SPECIAL_CHARS);
-    // Checkbox returns 'on' if checked, so we convert it to 1 or 0
     $form_data['is_active'] = isset($_POST['is_active']) ? 1 : 0; 
 
     // --- Validation ---
-    if (empty($form_data['title']) || empty($form_data['points_award']) || $form_data['points_award'] === false || empty($form_data['instructions'])) {
-        $error_message = "Please fill in all required fields (Title, Points Award, and Instructions) correctly.";
-    } elseif (!in_array($form_data['category'], $categories) || !in_array($form_data['proof_type'], $proof_types)) {
-         $error_message = "Invalid selection for Category or Proof Type.";
+    if (empty($form_data['title']) || $form_data['points_award'] === false || empty($form_data['instructions']) || empty($form_data['CategoryID'])) {
+        $error_message = "Please fill in all required fields (Title, Points, Category, and Instructions) correctly.";
     } elseif ($form_data['points_award'] <= 0) {
         $error_message = "Points Award must be a positive number.";
     } else {
         // --- Database Insertion ---
         if (isset($conn) && $conn) {
             try {
-                // SQL for insertion (matches your schema)
                 $sql_insert = "
-                    INSERT INTO quests (
-                        title, description, points_award, category, proof_type, instructions, is_active, created_by
+                    INSERT INTO Quest (
+                        Title, Description, Points_award, CategoryID, Proof_type, Instructions, Is_active, Created_by
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ";
                 
                 $stmt = $conn->prepare($sql_insert);
-                
-                if ($stmt === false) {
-                    throw new Exception("SQL Prepare Failed: " . $conn->error);
-                }
-
                 $stmt->bind_param(
-                    "ssisssii", 
+                    "ssiisssi", 
                     $form_data['title'], 
                     $form_data['description'], 
                     $form_data['points_award'], 
-                    $form_data['category'], 
-                    $form_data['proof_type'], 
+                    $form_data['CategoryID'], 
+                    $form_data['proof_type'], // This will always be 'Image'
                     $form_data['instructions'], 
                     $form_data['is_active'], 
-                    $user_id // The admin user ID
+                    $admin_id 
                 );
 
                 if ($stmt->execute()) {
-                    $success_message = "Quest '{$form_data['title']}' created successfully! Redirecting to Manage Quests...";
-                    
-                    // Clear the form data upon success
-                    $form_data = array_fill_keys(array_keys($form_data), '');
-
-                    // Redirect after a short delay to display success message
-                    header("Refresh: 2; URL=manage_quests.php?success=" . urlencode("Quest created successfully!"));
-                    exit;
-
+                    $success_message = "Quest '{$form_data['title']}' created successfully! Redirecting...";
+                    header("Refresh: 2; URL=manage_quests.php?success=" . urlencode("Quest created!"));
                 } else {
                     throw new Exception("Execution Failed: " . $stmt->error);
                 }
                 $stmt->close();
 
             } catch (Exception $e) {
-                error_log("Quest Creation Error: " . $e->getMessage());
-                $error_message = "Failed to save quest to database. Please check logs. Error: " . $e->getMessage();
+                $error_message = "Failed to save quest. Error: " . $e->getMessage();
             }
         } else {
-            $error_message = "Critical: Database connection object (\$conn) is unavailable.";
+            $error_message = "Database connection object is unavailable.";
         }
     }
 }
 ?>
 
-<!-- ======================================================= -->
-<!-- 3. HTML CONTENT START (Admin Layout) -->
-<!-- ======================================================= -->
 <main class="admin-page">
     <div class="admin-content-card">
         <h1 class="admin-title">Create New Quest</h1>
         <p class="admin-subtitle">Fill out the details below to add a new environmental challenge.</p>
 
-        <!-- Success/Error Messages -->
         <?php if ($success_message): ?>
             <div class="message success-message"><i class="fas fa-check-circle mr-2"></i> <?php echo htmlspecialchars($success_message); ?></div>
         <?php endif; ?>
-
         <?php if ($error_message): ?>
             <div class="message error-message"><i class="fas fa-exclamation-triangle mr-2"></i> <?php echo htmlspecialchars($error_message); ?></div>
         <?php endif; ?>
 
-        <!-- Quest Creation Form -->
         <form method="POST" action="create_quest.php" class="quest-form">
             
             <div class="form-group">
@@ -139,47 +116,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-group">
                 <label for="description">Short Description (Optional)</label>
                 <textarea id="description" name="description" rows="2"><?php echo htmlspecialchars($form_data['description']); ?></textarea>
-                <p class="hint">A brief summary visible on the main quest list.</p>
             </div>
+
+            <input type="hidden" name="proof_type" value="Image">
 
             <div class="form-row">
-                <!-- Points Award -->
-                <div class="form-group w-full md:w-1/3">
+                <div class="form-group w-full md:w-1/2">
                     <label for="points_award">Points Award <span class="required">*</span></label>
                     <input type="number" id="points_award" name="points_award" value="<?php echo htmlspecialchars($form_data['points_award']); ?>" required min="1">
-                    <p class="hint">The reward points for completing this quest.</p>
                 </div>
 
-                <!-- Category -->
-                <div class="form-group w-full md:w-1/3">
-                    <label for="category">Category <span class="required">*</span></label>
-                    <select id="category" name="category" required>
-                        <?php foreach ($categories as $cat): ?>
-                            <option value="<?php echo $cat; ?>" <?php echo ($form_data['category'] === $cat) ? 'selected' : ''; ?>>
-                                <?php echo $cat; ?>
+                <div class="form-group w-full md:w-1/2">
+                    <label for="CategoryID">Category <span class="required">*</span></label>
+                    <select id="CategoryID" name="CategoryID" required>
+                        <option value="">-- Select a Category --</option>
+                        <?php foreach ($categories_from_db as $cat): ?>
+                            <option value="<?php echo $cat['CategoryID']; ?>" <?php echo ($form_data['CategoryID'] == $cat['CategoryID']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($cat['Category_Name']); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                <!-- Proof Type -->
-                <div class="form-group w-full md:w-1/3">
-                    <label for="proof_type">Required Proof Type <span class="required">*</span></label>
-                    <select id="proof_type" name="proof_type" required>
-                        <?php foreach ($proof_types as $type): ?>
-                            <option value="<?php echo $type; ?>" <?php echo ($form_data['proof_type'] === $type) ? 'selected' : ''; ?>>
-                                <?php echo $type; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <p class="hint">How users must submit proof (Image, Text/Log, or Both).</p>
                 </div>
-            </div>
 
             <div class="form-group">
                 <label for="instructions">Detailed Instructions <span class="required">*</span></label>
                 <textarea id="instructions" name="instructions" rows="4" required><?php echo htmlspecialchars($form_data['instructions']); ?></textarea>
-                <p class="hint">Clear, step-by-step instructions for the user to complete and verify the quest.</p>
             </div>
             
             <div class="form-group checkbox-group">
@@ -197,199 +160,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
         </form>
-    </div> <!-- /.admin-content-card -->
+    </div>
 </main>
 
-<?php
-// =======================================================
-// 4. CUSTOM STYLING (Admin Panel Form CSS)
-// =======================================================
-?>
 <style>
-    /* General Admin Layout (from manage_quests.php) */
-    .admin-page {
-        padding: 30px 20px;
-        background-color: #FAFAF0; /* Light gray-green background */
-        min-height: 90vh;
-        font-family: 'Inter', sans-serif;
-    }
-    .admin-content-card {
-        max-width: 900px;
-        margin: 0 auto;
-        background: #FFFFFF;
-        padding: 30px;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    }
-    .admin-title {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #1D4C43; /* Dark Green */
-        margin-bottom: 5px;
-        border-bottom: 2px solid #DDEEE5;
-        padding-bottom: 10px;
-    }
-    .admin-subtitle {
-        font-size: 1rem;
-        color: #5A7F7C;
-        margin-bottom: 25px;
-    }
-    
-    /* Message Styles (Alerts) */
-    .message {
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        text-align: left;
-        font-size: 0.95rem;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-    }
-    .error-message {
-        background-color: #FADBD8; /* Light Red */
-        border: 1px solid #E74C3C;
-        color: #C0392B; /* Darker Red */
-    }
-    .success-message {
-        background-color: #DDEEE5; /* Light Green */
-        border: 1px solid #71B48D;
-        color: #1D4C43; /* Dark Green */
-    }
+    .admin-page { padding: 30px 20px; background-color: #FAFAF0; min-height: 90vh; }
+    .admin-content-card { max-width: 900px; margin: 0 auto; background: #FFFFFF; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); }
+    .admin-title { font-size: 2rem; font-weight: 700; color: #1D4C43; margin-bottom: 5px; border-bottom: 2px solid #DDEEE5; padding-bottom: 10px; }
+    .admin-subtitle { font-size: 1rem; color: #5A7F7C; margin-bottom: 25px; }
+    .message { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 0.95rem; font-weight: 500; }
+    .error-message { background-color: #FADBD8; border: 1px solid #E74C3C; color: #C0392B; }
+    .success-message { background-color: #DDEEE5; border: 1px solid #71B48D; color: #1D4C43; }
     .mr-2 { margin-right: 0.5rem; }
-
-    /* Form Styles */
-    .quest-form {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-    }
-    .form-group {
-        display: flex;
-        flex-direction: column;
-    }
-    .form-group label {
-        font-weight: 600;
-        color: #1D4C43;
-        margin-bottom: 8px;
-        font-size: 0.95rem;
-    }
-    .required {
-        color: #E74C3C;
-    }
-    .form-group input[type="text"],
-    .form-group input[type="number"],
-    .form-group select,
-    .form-group textarea {
-        padding: 10px 15px;
-        border: 1px solid #DDEEE5;
-        border-radius: 6px;
-        font-size: 1rem;
-        color: #333;
-        transition: border-color 0.3s, box-shadow 0.3s;
-        background-color: #FAFAFA;
-    }
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-        border-color: #71B48D;
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(113, 180, 141, 0.2);
-        background-color: #FFFFFF;
-    }
-    .form-group textarea {
-        resize: vertical;
-        min-height: 80px;
-    }
-    .hint {
-        font-size: 0.8rem;
-        color: #777;
-        margin-top: 4px;
-    }
-
-    /* Checkbox Group */
-    .checkbox-group {
-        flex-direction: row;
-        align-items: center;
-        margin-top: 10px;
-    }
-    .checkbox-group input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        margin-right: 10px;
-        flex-shrink: 0;
-        cursor: pointer;
-    }
-    .checkbox-group .inline-label {
-        font-weight: 500;
-        margin-bottom: 0;
-        cursor: pointer;
-    }
-
-    /* Form Row (for 3-column layout) */
-    .form-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
+    .quest-form { display: flex; flex-direction: column; gap: 20px; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-weight: 600; color: #1D4C43; margin-bottom: 8px; font-size: 0.95rem; }
+    .required { color: #E74C3C; }
+    .form-group input[type="text"], .form-group input[type="number"], .form-group select, .form-group textarea { padding: 10px 15px; border: 1px solid #DDEEE5; border-radius: 6px; font-size: 1rem; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #71B48D; outline: none; box-shadow: 0 0 0 2px rgba(113, 180, 141, 0.2); }
+    .hint { font-size: 0.8rem; color: #777; margin-top: 4px; }
+    .checkbox-group { flex-direction: row; align-items: center; margin-top: 10px; }
+    .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; }
+    .checkbox-group .inline-label { margin-bottom: 0; cursor: pointer; }
+    .form-row { display: flex; flex-wrap: wrap; gap: 20px; }
     .w-full { width: 100%; }
-    .md\:w-1\/3 { flex-basis: calc(33.333% - 13.333px); } /* Tailwind w-1/3 equivalent with gap */
-
-    /* Form Actions */
-    .form-actions {
-        display: flex;
-        gap: 15px;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-    }
-    .btn-primary-submit, .btn-secondary-cancel {
-        padding: 12px 20px;
-        font-weight: 600;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.3s, transform 0.1s;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-    }
-
-    .btn-primary-submit {
-        background: #71B48D; /* Light Green */
-        color: #1D4C43;
-    }
-    .btn-primary-submit:hover {
-        background: #5AA080;
-        transform: translateY(-1px);
-    }
-    
-    .btn-secondary-cancel {
-        background: #F4F7F6; /* Background Color */
-        color: #5A7F7C;
-        border: 1px solid #DDEEE5;
-    }
-    .btn-secondary-cancel:hover {
-        background: #E8EDE9;
-        color: #1D4C43;
-    }
-
-    /* Mobile adjustments */
+    .md\:w-1\/3 { flex-basis: calc(33.333% - 13.333px); }
+    /* === STYLE ADDED === */
+    .md\:w-1\/2 { flex-basis: calc(50% - 10px); }
+    .form-actions { display: flex; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
+    .btn-primary-submit, .btn-secondary-cancel { padding: 12px 20px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.3s; text-decoration: none; }
+    .btn-primary-submit { background: #71B48D; color: #1D4C43; }
+    .btn-secondary-cancel { background: #F4F7F6; color: #5A7F7C; border: 1px solid #DDEEE5; }
     @media (max-width: 768px) {
-        .form-row {
-            flex-direction: column;
-            gap: 15px;
-        }
-        .md\:w-1\/3 {
-            flex-basis: 100%;
-        }
-        .form-actions {
-            flex-direction: column;
-            gap: 10px;
-        }
+        .form-row { flex-direction: column; gap: 15px; }
+        .md\:w-1\/3 { flex-basis: 100%; }
+        /* === STYLE ADDED === */
+        .md\:w-1\/2 { flex-basis: 100%; }
     }
 </style>
 
-<?php
-require_once '../../includes/footer.php'; 
-?>
+<?php require_once '../../includes/footer.php'; ?>

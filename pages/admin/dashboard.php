@@ -9,7 +9,7 @@ $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
 $conn = $conn ?? null;
 
-if (!$is_logged_in || $user_role !== 'admin') {
+if (!$is_logged_in || $user_role !== 'admin' || !isset($_SESSION['admin_id'])) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }
@@ -29,37 +29,39 @@ if (!$conn) {
     try {
         // --- Fetch key metrics ---
 
-        // 1. Total Students - FIXED: Fetches from the new 'students' table
-        $stmt = $conn->prepare("SELECT COUNT(student_id) AS total FROM students");
+        // 1. Total Students - FIXED: Fetches from the 'Student' table
+        $stmt = $conn->prepare("SELECT COUNT(Student_id) AS total FROM Student");
         $stmt->execute();
         $total_students = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
         $stmt->close();
 
-        // 2. Total Points Awarded - FIXED: Fetches from the 'students' table
-        $stmt = $conn->prepare("SELECT SUM(total_points) AS total FROM students");
+        // 2. Total Points Awarded - FIXED: Fetches from the 'Student' table
+        $stmt = $conn->prepare("SELECT SUM(Total_point) AS total FROM Student");
         $stmt->execute();
         $total_points_awarded = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
         $stmt->close();
 
-        // 3. Pending Submissions Count - FIXED: Fetches from the 'submissions' table
-        $stmt = $conn->prepare("SELECT COUNT(submission_id) AS total FROM submissions WHERE status = 'pending'");
+        // 3. Pending Submissions Count - FIXED: Fetches from 'Student_Quest_Submissions'
+        $stmt = $conn->prepare("SELECT COUNT(Student_quest_submission_id) AS total FROM Student_Quest_Submissions WHERE Status = 'pending'");
         $stmt->execute();
         $pending_submissions_count = $stmt->get_result()->fetch_assoc()['total'] ?? 0;
         $stmt->close();
 
         // --- 2.2 Fetch recent pending submissions (Top 5) - FIXED QUERY ---
-        // This query now joins with 'students' and uses the correct column names
+        // Joins User -> Student -> Student_Quest_Submissions
         $stmt = $conn->prepare("
             SELECT
-                s.submission_id,
-                st.username,
-                s.proof_text,
-                s.submitted_at,
-                s.status
-            FROM submissions s
-            JOIN students st ON s.user_id = st.student_id
-            WHERE s.status = 'pending'
-            ORDER BY s.submitted_at ASC -- Oldest first
+                s.Student_quest_submission_id,
+                u.Username,
+                q.Title,
+                s.Submission_date,
+                s.Status
+            FROM Student_Quest_Submissions s
+            JOIN Student st ON s.Student_id = st.Student_id
+            JOIN User u ON st.User_id = u.User_id
+            JOIN Quest q ON s.Quest_id = q.Quest_id
+            WHERE s.Status = 'pending'
+            ORDER BY s.Submission_date ASC -- Oldest first
             LIMIT 5
         ");
         $stmt->execute();
@@ -128,7 +130,7 @@ if (!$conn) {
                             <tr>
                                 <th>ID</th>
                                 <th>Student</th>
-                                <th>Proof Text (Preview)</th>
+                                <th>Quest Title</th>
                                 <th>Submitted On</th>
                                 <th>Action</th>
                             </tr>
@@ -136,12 +138,12 @@ if (!$conn) {
                         <tbody>
                         <?php foreach ($recent_submissions as $submission): ?>
                             <tr>
-                                <td data-label="ID"><?php echo htmlspecialchars($submission['submission_id']); ?></td>
-                                <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['username']); ?></td>
-                                <td data-label="Proof Text"><?php echo htmlspecialchars(substr($submission['proof_text'], 0, 40)) . '...'; ?></td>
-                                <td data-label="Submitted On"><?php echo date('d M Y, h:i A', strtotime($submission['submitted_at'])); ?></td>
+                                <td data-label="ID"><?php echo htmlspecialchars($submission['Student_quest_submission_id']); ?></td>
+                                <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['Username']); ?></td>
+                                <td data-label="Quest Title"><?php echo htmlspecialchars($submission['Title']); ?></td>
+                                <td data-label="Submitted On"><?php echo date('d M Y, h:i A', strtotime($submission['Submission_date'])); ?></td>
                                 <td data-label="Action">
-                                    <a href="review_submission.php?id=<?php echo $submission['submission_id']; ?>" class="btn btn-sm btn-primary">Review Details</a>
+                                    <a href="review_submission.php?id=<?php echo $submission['Student_quest_submission_id']; ?>" class="btn btn-sm btn-primary">Review Details</a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -169,8 +171,8 @@ if (!$conn) {
                 <a href="reports.php" class="btn btn-secondary">View Analytics</a>
             </div>
             <div class="section-card action-card">
-                <h2><i class="fas fa-cogs"></i> Manage Content</h2>
-                <p>Create or edit the quests and rewards available to users.</p>
+                <h2><i class="fas fa-cogs"></i> Manage Quests</h2>
+                <p>Create new environmental challenges, update instructions, or delete old quests.</p>
                 <a href="manage_quests.php" class="btn btn-secondary">Manage Quests</a>
             </div>
         </section>

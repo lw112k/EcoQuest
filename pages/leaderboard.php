@@ -5,10 +5,10 @@ session_start();
 include("../config/db.php");
 include("../includes/header.php");
 
-// Get the current logged-in user ID if they are a student
-$current_user_id = null;
-if (isset($_SESSION['user_id']) && $_SESSION['user_role'] === 'student') {
-    $current_user_id = $_SESSION['user_id'];
+// Get the current logged-in student ID
+$current_student_id = null;
+if (isset($_SESSION['user_id']) && $_SESSION['user_role'] === 'student' && isset($_SESSION['student_id'])) {
+    $current_student_id = $_SESSION['student_id'];
 }
 
 $users = [];
@@ -17,16 +17,18 @@ $db_error = '';
 if (!isset($conn) || $conn->connect_error) {
     $db_error = 'Error: Database connection failed. Leaderboard cannot load data.';
 } else {
-    // --- UPDATED SQL QUERY ---
-    // Fetches all users directly from the new 'students' table.
-    $sql = "SELECT student_id, username, total_points
-            FROM students
-            ORDER BY total_points DESC";
+    // --- UPDATED SQL QUERY (joins User and Student) ---
+    $sql = "SELECT 
+                s.Student_id, 
+                u.Username, 
+                s.Total_point,
+                u.Role
+            FROM Student s
+            JOIN User u ON s.User_id = u.User_id
+            ORDER BY s.Total_point DESC";
 
     if ($result = $conn->query($sql)) {
         while ($row = $result->fetch_assoc()) {
-            // Add a 'role' key for display consistency, always 'student'
-            $row['role'] = 'student';
             $users[] = $row;
         }
         $result->free();
@@ -35,15 +37,15 @@ if (!isset($conn) || $conn->connect_error) {
     }
 }
 
-// --- RANKING LOGIC (No changes needed here, just the keys used below) ---
+// --- RANKING LOGIC (Updated column name) ---
 $rank = 0;
 $prev_points = -1;
 foreach ($users as $key => $user) {
-    if ($user['total_points'] !== $prev_points) {
+    if ($user['Total_point'] !== $prev_points) {
         $rank = $key + 1;
     }
     $users[$key]['rank'] = $rank;
-    $prev_points = $user['total_points'];
+    $prev_points = $user['Total_point'];
 }
 ?>
 
@@ -74,8 +76,8 @@ foreach ($users as $key => $user) {
                     <?php else: ?>
                         <?php foreach ($users as $user): ?>
                             <?php
-                            // UPDATED: Check against 'student_id'
-                            $is_current_user = ($current_user_id !== null && $user['student_id'] == $current_user_id);
+                            // Check against 'Student_id'
+                            $is_current_user = ($current_student_id !== null && $user['Student_id'] == $current_student_id);
                             $row_class = $is_current_user ? 'current-user' : '';
                             ?>
                             <tr class="<?php echo $row_class; ?>">
@@ -93,13 +95,13 @@ foreach ($users as $key => $user) {
                                     <?php endif; ?>
                                 </td>
                                 <td data-label="User" class="user-cell">
-                                    <?php echo htmlspecialchars($user['username']); ?>
+                                    <?php echo htmlspecialchars($user['Username']); ?>
                                 </td>
                                 <td data-label="Role" class="role-cell">
-                                    <span class="role-tag role-student"><?php echo ucfirst($user['role']); ?></span>
+                                    <span class="role-tag role-student"><?php echo ucfirst($user['Role']); ?></span>
                                 </td>
                                 <td data-label="Total Points" class="points-cell">
-                                    <span class="total-points"><?php echo number_format($user['total_points']); ?></span> PTS
+                                    <span class="total-points"><?php echo number_format($user['Total_point']); ?></span> PTS
                                 </td>
                             </tr>
                         <?php endforeach; ?>

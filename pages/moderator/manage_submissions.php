@@ -10,9 +10,12 @@ $user_role = $user_role ?? 'guest';
 $conn = $conn ?? null;
 
 // Allow both moderators and admins to access this page
-if (!$is_logged_in || !in_array($user_role, ['moderator', 'admin'])) {
-    header('Location: ../../index.php?error=unauthorized');
-    exit;
+if (!$is_logged_in || !in_array($user_role, ['moderator', 'admin']) || !isset($_SESSION['moderator_id'])) {
+    // Note: Admins can also be moderators, but for simplicity we check moderator_id
+    // A better check might be just role, but we need moderator_id for reviews.
+    // Let's stick to the role check.
+     header('Location: ../../index.php?error=unauthorized');
+     exit;
 }
 
 // =======================================================
@@ -28,34 +31,35 @@ if (!in_array($filter_status, $valid_statuses)) {
     $filter_status = 'pending';
 }
 
-// Construct the query to get data from 'submissions' and 'students' tables
+// Construct the query
 $query = "
     SELECT
-        s.submission_id,
-        st.username,
-        q.title AS quest_title,
-        q.points_award,
-        s.status,
-        s.submitted_at
+        s.Student_quest_submission_id,
+        u.Username,
+        q.Title AS quest_title,
+        q.Points_award,
+        s.Status,
+        s.Submission_date
     FROM
-        submissions s
+        Student_Quest_Submissions s
     JOIN
-        students st ON s.user_id = st.student_id
+        Student st ON s.Student_id = st.Student_id
     JOIN
-        quests q ON s.quest_id = q.quest_id
+        User u ON st.User_id = u.User_id
+    JOIN
+        Quest q ON s.Quest_id = q.Quest_id
 ";
 
 $params = [];
 $types = '';
 
-// Add a WHERE clause if a specific status is being filtered
 if ($filter_status !== 'all') {
-    $query .= " WHERE s.status = ?";
+    $query .= " WHERE s.Status = ?";
     $params[] = $filter_status;
     $types .= 's';
 }
 
-$query .= " ORDER BY s.submitted_at DESC";
+$query .= " ORDER BY s.Submission_date DESC";
 
 if (!$conn) {
     $error_message = "Database connection failed.";
@@ -69,7 +73,7 @@ if (!$conn) {
             $stmt->bind_param($types, ...$params);
         }
         if (!$stmt->execute()) {
-            throw new Exception("SQL execution failed: " . $stmt->error);
+            throw new Exception("SQL execution failed: ". $stmt->error);
         }
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
@@ -132,21 +136,21 @@ if (!$conn) {
                         <tbody>
                             <?php foreach ($submissions as $submission): ?>
                                 <tr>
-                                    <td data-label="ID"><?php echo htmlspecialchars($submission['submission_id']); ?></td>
-                                    <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['username']); ?></td>
+                                    <td data-label="ID"><?php echo htmlspecialchars($submission['Student_quest_submission_id']); ?></td>
+                                    <td data-label="Student"><i class="fas fa-user-circle user-icon"></i> <?php echo htmlspecialchars($submission['Username']); ?></td>
                                     <td data-label="Quest Title"><?php echo htmlspecialchars($submission['quest_title']); ?></td>
-                                    <td data-label="Points"><?php echo htmlspecialchars($submission['points_award']); ?> Pts</td>
+                                    <td data-label="Points"><?php echo htmlspecialchars($submission['Points_award']); ?> Pts</td>
                                     <td data-label="Status">
-                                        <span class="status-badge status-<?php echo strtolower($submission['status']); ?>">
-                                            <?php echo ($submission['status'] === 'completed') ? 'Approved' : ucfirst($submission['status']); ?>
+                                        <span class="status-badge status-<?php echo strtolower($submission['Status']); ?>">
+                                            <?php echo ($submission['Status'] === 'completed') ? 'Approved' : ucfirst($submission['Status']); ?>
                                         </span>
                                     </td>
                                     <td data-label="Submitted On">
-                                        <?php echo $submission['submitted_at'] ? date('d M Y, h:i A', strtotime($submission['submitted_at'])) : 'N/A'; ?>
+                                        <?php echo $submission['Submission_date'] ? date('d M Y, h:i A', strtotime($submission['Submission_date'])) : 'N/A'; ?>
                                     </td>
                                     <td data-label="Action">
-                                        <a href="../admin/review_submission.php?id=<?php echo $submission['submission_id']; ?>" class="btn btn-sm btn-primary">
-                                            <?php echo ($submission['status'] == 'pending') ? 'Review Now' : 'View Details'; ?>
+                                        <a href="review_submission.php?id=<?php echo $submission['Student_quest_submission_id']; ?>" class="btn btn-sm btn-primary">
+                                            <?php echo ($submission['Status'] == 'pending') ? 'Review Now' : 'View Details'; ?>
                                         </a>
                                     </td>
                                 </tr>

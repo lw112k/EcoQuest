@@ -1,80 +1,11 @@
 // assets/js/main.js
+// NEW Chatbot-style FAQ JavaScript
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // Helper function to display temporary messages on the form
-    const displayMessage = (containerId, message, isError = true) => {
-        const container = document.getElementById(containerId);
-        if (container) {
-            container.innerHTML = message;
-            container.className = isError ? 'error-message' : 'success-message';
-        }
-    };
-
-    // --- 1. Registration Form Validation ---
-    const registerForm = document.getElementById('registerForm');
-
-    if (registerForm) {
-        registerForm.addEventListener('submit', (e) => {
-
-            // Get fields
-            const fullName = document.getElementById('full_name').value.trim();
-            const studentId = document.getElementById('student_id').value.trim();
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm_password').value;
-
-            let isValid = true;
-            let errorMessage = '';
-
-            // Check 1: Empty Fields Check
-            if (!fullName || !studentId || !email || !password || !confirmPassword) {
-                isValid = false;
-                errorMessage = 'Walao eh, don\'t leave any field empty!';
-            }
-
-            // Check 2: Password Match Check
-            else if (password !== confirmPassword) {
-                isValid = false;
-                errorMessage = 'Your password and confirmation password do not match. Fix it, cepat!';
-                // Clear password fields on mismatch for security
-                document.getElementById('password').value = '';
-                document.getElementById('confirm_password').value = '';
-            }
-
-            // Check 3: Minimum Password Length (Good Practice)
-            else if (password.length < 8) {
-                isValid = false;
-                errorMessage = 'Password must be at least 8 characters long.';
-            }
-
-            // If validation failed, prevent form submission
-            if (!isValid) {
-                e.preventDefault();
-                // Display the error message
-                // Note: You need a message placeholder in register.php for this to work.
-                // For now, we will use a simple alert if you don't have a placeholder.
-
-                // If you added a div like <div id="validationMessage"></div> above the submit button:
-                // displayMessage('validationMessage', errorMessage, true);
-
-                // For simplicity now, let's use an alert as a fallback, but a dedicated div is better UX.
-                alert('Validation failed: ' + errorMessage);
-
-                // To properly display messages, add a placeholder div in register.php,
-                // e.g., right before the submit button:
-                // <div id="validationMessage" class="error-message"></div>
-            }
-            // If isValid is true, the form submits normally to register_process.php
-        });
-    }
-
-
-    // --- 2. Mobile Menu Toggle (from previous discussion) ---
-    // Implement this for your responsive design requirement!
+    // --- 1. Mobile Menu Toggle ---
     const navToggle = document.querySelector('.nav-toggle');
     const navMenu = document.querySelector('.nav-links');
-
     if (navToggle && navMenu) {
         navToggle.addEventListener('click', () => {
             navMenu.classList.toggle('is-open');
@@ -82,4 +13,132 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- 2. FAQ Popup Logic ---
+    const faqToggleButton = document.getElementById('faq-toggle-button');
+    const faqCloseButton = document.getElementById('faq-close-btn');
+    const faqPopup = document.getElementById('faq-popup');
+    const faqListContainer = document.getElementById('faq-list');
+    
+    let allFaqQuestions = []; // To store the fetched questions
+    let isFaqLoaded = false;
+
+    // Helper: Displays a message in the chat window
+    const appendMessage = (text, sender) => {
+        const messageElement = document.createElement('div');
+        messageElement.className = `chat-message ${sender}`; // 'user' or 'bot'
+        messageElement.textContent = text;
+        faqListContainer.appendChild(messageElement);
+        // Scroll to bottom
+        faqListContainer.scrollTop = faqListContainer.scrollHeight;
+    };
+
+    // Helper: Displays the list of question buttons
+    const displayQuestions = () => {
+        faqListContainer.innerHTML = ''; // Clear the chat
+        allFaqQuestions.forEach(item => {
+            const questionButton = document.createElement('button');
+            questionButton.className = 'faq-question-btn';
+            questionButton.textContent = item.question;
+            // Set up the click event for this question
+            questionButton.onclick = () => {
+                displayAnswer(item.question, item.answer);
+            };
+            faqListContainer.appendChild(questionButton);
+        });
+    };
+
+    // Helper: Displays the Q&A in a chat format
+    const displayAnswer = (question, answer) => {
+        faqListContainer.innerHTML = ''; // Clear questions
+
+        // 1. Add "Back" button
+        const backButton = document.createElement('button');
+        backButton.className = 'faq-back-btn';
+        backButton.innerHTML = '&laquo; Back to questions';
+        backButton.onclick = displayQuestions; // Go back to question list
+        faqListContainer.appendChild(backButton);
+
+        // 2. Show user's question (as if they sent it)
+        appendMessage(question, 'user');
+
+        // 3. Show bot's answer after a 1-second delay
+        setTimeout(() => {
+            appendMessage(answer, 'bot');
+        }, 1000); // 1-second delay
+    };
+
+    // Main function to fetch and initialize the FAQ data
+    const loadFaq = async () => {
+        // If already loaded, just show the questions list again
+        if (isFaqLoaded) {
+            displayQuestions();
+            return;
+        }
+
+        try {
+            faqListContainer.innerHTML = '<p>Loading questions...</p>';
+            // Fetch from the JSON file
+            const response = await fetch('../assets/data/faq.json'); 
+            if (!response.ok) throw new Error('faq.json not found');
+            
+            const data = await response.json();
+            
+            if (data.questions && data.questions.length > 0) {
+                allFaqQuestions = data.questions; // Store questions
+                displayQuestions(); // Show the list of questions
+                isFaqLoaded = true;
+            } else {
+                faqListContainer.innerHTML = '<p>No FAQs found.</p>';
+            }
+        } catch (error) {
+            console.error('Error loading FAQ:', error);
+            faqListContainer.innerHTML = '<p>Error loading questions.</p>';
+        }
+    };
+
+    // Function to toggle the popup
+    const togglePopup = () => {
+        faqPopup.classList.toggle('show');
+        // Load/Reload FAQs every time it's opened
+        if (faqPopup.classList.contains('show')) {
+            loadFaq();
+        }
+    };
+
+    // Event Listeners
+    if (faqToggleButton && faqPopup && faqCloseButton) {
+        faqToggleButton.addEventListener('click', togglePopup);
+        faqCloseButton.addEventListener('click', togglePopup);
+    }
 });
+
+/*==================
+LOGIN & REGISTER
+====================*/
+//view password
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const toggle = event.target;
+    if (input.type === 'password') {
+        input.type = 'text';
+        toggle.textContent = '🙉';
+    } else {
+        input.type = 'password';
+        toggle.textContent = '🙈';
+    }
+}
+
+// for login and register swap on the same page
+var x = document.getElementById('login');
+var y = document.getElementById('register');
+var z = document.getElementById('btn');       
+function login(){
+    x.style.left = "27px";
+    y.style.right = "-550px";
+    z.style.left = "0px";
+}
+function register(){
+    x.style.left = "-550px";
+    y.style.right = "25px";
+    z.style.left = "210px";
+} 

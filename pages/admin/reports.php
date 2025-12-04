@@ -1,7 +1,5 @@
 <?php
 // pages/admin/reports.php
-// EcoQuest Admin Reports — visual analytics for admin
-
 require_once '../../includes/header.php';
 
 // ===============================================
@@ -11,7 +9,7 @@ $is_logged_in = $is_logged_in ?? false;
 $user_role = $user_role ?? 'guest';
 $conn = $conn ?? null;
 
-if (!$is_logged_in || $user_role !== 'admin') {
+if (!$is_logged_in || $user_role !== 'admin' || !isset($_SESSION['admin_id'])) {
     header('Location: ../../index.php?error=unauthorized');
     exit;
 }
@@ -21,62 +19,66 @@ if (!$is_logged_in || $user_role !== 'admin') {
 // ===============================================
 $error_message = '';
 $quest_popularity = [];
-$submission_status = ['pending' => 0, 'approved' => 0, 'rejected' => 0];
+$submission_status = ['pending' => 0, 'completed' => 0, 'rejected' => 0, 'active' => 0];
 $top_students = [];
 $activity_trend = [];
 $total_submissions = 0;
+$total_submissions_breakdown = 0;
 
 // ===============================================
 // 3. FETCH DATA (Using safer prepared queries)
 // ===============================================
 if ($conn) {
     try {
-        // 1️⃣ Total Submissions
-        $stmt = $conn->prepare("SELECT COUNT(submission_id) AS total_count FROM submissions");
+        // 1️⃣ Total Submissions (from Student_Quest_Submissions)
+        $stmt = $conn->prepare("SELECT COUNT(Student_quest_submission_id) AS total_count FROM Student_Quest_Submissions");
         $stmt->execute();
         $row = $stmt->get_result()->fetch_assoc();
         $total_submissions = number_format($row['total_count'] ?? 0);
 
-        // 2️⃣ Quest Popularity
+        // 2️⃣ Quest Popularity (from Quest_Progress)
         $stmt = $conn->prepare("
-            SELECT q.title, COUNT(uq.quest_id) AS completion_count
-            FROM quests q
-            LEFT JOIN user_quests uq ON q.quest_id = uq.quest_id AND uq.status = 'completed'
-            GROUP BY q.quest_id
+            SELECT q.Title, COUNT(p.Quest_id) AS completion_count
+            FROM Quest q
+            LEFT JOIN Quest_Progress p ON q.Quest_id = p.Quest_id AND p.Status = 'completed'
+            GROUP BY q.Quest_id
             ORDER BY completion_count DESC
             LIMIT 8
         ");
         $stmt->execute();
         $quest_popularity = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-        // 3️⃣ Submission Status Breakdown
+        // 3️⃣ Submission Status Breakdown (from Student_Quest_Submissions)
         $stmt = $conn->prepare("
-            SELECT status, COUNT(submission_id) AS count
-            FROM submissions
-            GROUP BY status
+            SELECT Status, COUNT(Student_quest_submission_id) AS count
+            FROM Student_Quest_Submissions
+            GROUP BY Status
         ");
         $stmt->execute();
         $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         foreach ($rows as $row) {
-            $submission_status[$row['status']] = (int)$row['count'];
+            if (array_key_exists(strtolower($row['Status']), $submission_status)) {
+                 $submission_status[strtolower($row['Status'])] = (int)$row['count'];
+            }
         }
         $total_submissions_breakdown = array_sum($submission_status);
 
-        // 4️⃣ Top Students
+        // 4️⃣ Top Students (from Student table)
         $stmt = $conn->prepare("
-            SELECT username, total_points
-            FROM users
-            WHERE user_role = 'student'
-            ORDER BY total_points DESC
+            SELECT u.Username, s.Total_point
+            FROM Student s
+            JOIN User u ON s.User_id = u.User_id
+            ORDER BY s.Total_point DESC
             LIMIT 10
         ");
         $stmt->execute();
         $top_students = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-        // 5️⃣ Monthly Activity Trend
+        // 5️⃣ Monthly Activity Trend (from Student_Quest_Submissions)
         $stmt = $conn->prepare("
-            SELECT DATE_FORMAT(submission_date, '%Y-%m') AS month, COUNT(submission_id) AS total_submissions
-            FROM submissions
+            SELECT DATE_FORMAT(Submission_date, '%Y-%m') AS month, COUNT(Student_quest_submission_id) AS total_submissions
+            FROM Student_Quest_Submissions
+            WHERE Submission_date IS NOT NULL
             GROUP BY month
             ORDER BY month ASC
             LIMIT 12
@@ -88,7 +90,7 @@ if ($conn) {
         $error_message = "SQL ERROR: " . htmlspecialchars($e->getMessage());
     }
 } else {
-    $error_message = "Database connection failed. Please check config/db.php.";
+    $error_message = "Database connection failed.";
 }
 ?>
 
@@ -105,7 +107,6 @@ if ($conn) {
             </div>
         <?php endif; ?>
 
-        <!-- Stat Cards Grid -->
         <div class="stat-cards-grid">
             <div class="stat-card stat-card-submissions">
                 <i class="fas fa-file-invoice icon"></i>
@@ -119,7 +120,7 @@ if ($conn) {
                 <i class="fas fa-map-marked-alt icon"></i>
                 <div class="stat-info">
                     <span class="stat-value"><?php echo number_format($quest_popularity[0]['completion_count'] ?? 0); ?></span>
-                    <span class="stat-label">Most Completed Quest: <?php echo htmlspecialchars($quest_popularity[0]['title'] ?? 'N/A'); ?></span>
+                    <span class="stat-label">Most Completed Quest: <?php echo htmlspecialchars($quest_popularity[0]['Title'] ?? 'N/A'); ?></span>
                 </div>
             </div>
 
@@ -133,19 +134,19 @@ if ($conn) {
             </div>
         </div>
 
-        <!-- Submission Status + Quest Popularity -->
         <div class="admin-data-section reports-grid">
             <div class="data-card section-card">
                 <header class="section-header">
-                    <h2><i class="fas fa-hourglass-half"></i> Submission Status Breakdown</h2>
+                    <h2><i class="fas fa-tasks"></i> Submission Status Breakdown</h2>
                 </header>
                 <div class="status-list">
                     <?php foreach ($submission_status as $status => $count): ?>
                         <?php
                             $percent = $total_submissions_breakdown > 0 ? round(($count / $total_submissions_breakdown) * 100) : 0;
                             $color_class = match($status) {
-                                'approved' => 'approved',
+                                'completed' => 'approved',
                                 'rejected' => 'rejected',
+                                'active' => 'active', // 'active' isn't in submissions, but good to have
                                 default => 'pending',
                             };
                         ?>
@@ -170,7 +171,7 @@ if ($conn) {
                             <div class="popularity-item">
                                 <span class="rank">#<?php echo $i + 1; ?></span>
                                 <div class="details">
-                                    <span class="quest"><?php echo htmlspecialchars($q['title']); ?></span>
+                                    <span class="quest"><?php echo htmlspecialchars($q['Title']); ?></span>
                                     <span class="count"><?php echo $q['completion_count']; ?></span>
                                 </div>
                                 <div class="bar" style="width: <?php echo $width; ?>%;"></div>
@@ -183,7 +184,6 @@ if ($conn) {
             </div>
         </div>
 
-        <!-- Monthly Trend -->
         <section class="admin-data-section">
             <header class="section-header">
                 <h2><i class="fas fa-calendar-alt"></i> Submission Activity Trend</h2>
@@ -204,7 +204,6 @@ if ($conn) {
             <?php endif; ?>
         </section>
 
-        <!-- Leaderboard -->
         <section class="admin-data-section">
             <header class="section-header">
                 <h2><i class="fas fa-trophy"></i> Top 10 Student Eco-Champions</h2>
@@ -217,8 +216,8 @@ if ($conn) {
                             <?php foreach ($top_students as $rank => $s): ?>
                                 <tr class="<?php echo ['rank-gold','rank-silver','rank-bronze'][$rank] ?? ''; ?>">
                                     <td><?php echo $rank + 1; ?></td>
-                                    <td><i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($s['username']); ?></td>
-                                    <td><?php echo number_format($s['total_points']); ?> <i class="fas fa-leaf"></i></td>
+                                    <td><i class="fas fa-user-circle"></i> <?php echo htmlspecialchars($s['Username']); ?></td>
+                                    <td><?php echo number_format($s['Total_point']); ?> <i class="fas fa-leaf"></i></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -232,15 +231,30 @@ if ($conn) {
 </main>
 
 <style>
-/* Keep your existing CSS — maybe just add smooth transitions */
-.progress-bar,
-.bar-chart-item {
-    transition: all 0.5s ease;
-}
-.bar-chart-item:hover {
-    background: #1D4C43;
-    color: #fff;
-}
+/* Add your CSS styles for reports here */
+.reports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.data-card { padding: 20px; }
+.status-list { display: flex; flex-direction: column; gap: 10px; }
+.status-item { display: flex; justify-content: space-between; font-weight: 600; }
+.progress-bar { height: 10px; border-radius: 5px; }
+.progress-bar.pending { background-color: #f6ad55; }
+.progress-bar.approved { background-color: #48bb78; }
+.progress-bar.rejected { background-color: #f56565; }
+.popularity-list { display: flex; flex-direction: column; gap: 8px; }
+.popularity-item { display: flex; align-items: center; gap: 10px; }
+.popularity-item .rank { font-weight: bold; width: 25px; }
+.popularity-item .details { flex-grow: 1; }
+.popularity-item .quest { font-weight: 500; }
+.popularity-item .count { font-size: 0.8rem; color: #777; }
+.popularity-item .bar { background-color: #71B48D; height: 10px; border-radius: 5px; }
+.bar-chart-container { display: flex; align-items: flex-end; gap: 1%; height: 250px; border-bottom: 2px solid #eee; padding: 10px 0; }
+.bar-chart-item { flex-grow: 1; background-color: #1D4C43; color: white; text-align: center; position: relative; }
+.bar-chart-item .bar-value { font-size: 0.8rem; font-weight: bold; padding: 5px 0; }
+.bar-chart-item .bar-label { position: absolute; bottom: -25px; left: 0; right: 0; font-size: 0.8rem; color: #333; }
+.rank-gold { background-color: #fffbeb; }
+.rank-silver { background-color: #f8f8f8; }
+.rank-bronze { background-color: #fff5eb; }
+@media (max-width: 768px) { .reports-grid { grid-template-columns: 1fr; } }
 </style>
 
 <?php require_once '../../includes/footer.php'; ?>

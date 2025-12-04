@@ -11,22 +11,22 @@ $rewards = [];
 $is_db_connected = isset($conn) && !$conn->connect_error;
 
 // Determine if the user is a logged-in student
-$is_student = (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'student' && isset($_SESSION['user_id']));
-$current_user_id = $_SESSION['user_id'] ?? null;
+$is_student = (isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'student' && isset($_SESSION['student_id']));
+$current_student_id = $_SESSION['student_id'] ?? null;
 
 if (!$is_db_connected) {
     $db_error = 'Error: Database connection failed. Cannot load data.';
 } else {
     // 1. FETCH USER POINTS (if logged in as student) - FIXED
     if ($is_student) {
-        // Fetches from the new 'students' table using 'student_id'
-        $stmt = $conn->prepare("SELECT total_points FROM students WHERE student_id = ?");
+        // Fetches from the 'Student' table using 'Student_id'
+        $stmt = $conn->prepare("SELECT Total_point FROM Student WHERE Student_id = ?");
         if ($stmt) {
-            $stmt->bind_param("i", $current_user_id);
+            $stmt->bind_param("i", $current_student_id);
             if ($stmt->execute()) {
                 $result = $stmt->get_result();
                 if ($user_data = $result->fetch_assoc()) {
-                    $user_points = (int) $user_data['total_points'];
+                    $user_points = (int) $user_data['Total_point'];
                 }
             } else {
                 $db_error = 'Could not fetch user points: ' . $stmt->error;
@@ -37,14 +37,14 @@ if (!$is_db_connected) {
         }
     }
     
-    // 2. FETCH ALL REWARDS (This part is OK, no changes needed)
-    $sql = "SELECT reward_id AS id, name, points_cost, category, stock, image_url, description 
-            FROM rewards 
-            ORDER BY points_cost ASC";
+    // 2. FETCH ALL REWARDS (Updated column names)
+    $sql = "SELECT Reward_id, Reward_name, Points_cost, Stock, Image_url, Description 
+            FROM Reward 
+            WHERE Is_active = 1
+            ORDER BY Points_cost ASC";
     
     if ($result = $conn->query($sql)) {
         while ($row = $result->fetch_assoc()) {
-            $row['desc'] = $row['description'];
             $rewards[] = $row;
         }
         $result->free();
@@ -72,39 +72,39 @@ if (!$is_db_connected) {
             </div>
         <?php else: ?>
             <div class="user-points-summary">
-                <p class="points-tip">Want to redeem? <a href="login.php">Log in</a> as a Student to see your points and redeem rewards!</p>
+                <p class="points-tip">Want to redeem? <a href="sign_up.php">Log in</a> as a Student to see your points and redeem rewards!</p>
             </div>
         <?php endif; ?>
 
         <div class="reward-grid">
             <?php foreach ($rewards as $reward): ?>
                 <?php
-                $can_redeem = $is_student && ($user_points >= $reward['points_cost']) && ($reward['stock'] > 0 || $reward['stock'] == -1);
-                $is_out_of_stock = $reward['stock'] == 0;
-                $image_url = !empty($reward['image_url']) ? htmlspecialchars($reward['image_url']) : 'https://placehold.co/400x250/2C3E50/FAFAF0?text=Reward';
+                $can_redeem = $is_student && ($user_points >= $reward['Points_cost']) && ($reward['Stock'] > 0 || $reward['Stock'] == -1);
+                $is_out_of_stock = $reward['Stock'] == 0;
+                $image_url = !empty($reward['Image_url']) ? htmlspecialchars($reward['Image_url']) : 'https://placehold.co/400x250/2C3E50/FAFAF0?text=Reward';
                 ?>
                 <div class="reward-card <?php echo $is_out_of_stock ? 'out-of-stock' : ''; ?>">
                     <div class="reward-image-container">
-                        <img src="<?php echo $image_url; ?>" alt="<?php echo htmlspecialchars($reward['name']); ?>" class="reward-image">
+                        <img src="<?php echo $image_url; ?>" alt="<?php echo htmlspecialchars($reward['Reward_name']); ?>" class="reward-image">
                         <?php if ($is_out_of_stock): ?>
                             <span class="stock-overlay">SOLD OUT</span>
                         <?php endif; ?>
                     </div>
                     <div class="reward-content">
-                        <h3 class="reward-title"><?php echo htmlspecialchars($reward['name']); ?></h3>
-                        <p class="reward-desc"><?php echo htmlspecialchars($reward['desc']); ?></p>
+                        <h3 class="reward-title"><?php echo htmlspecialchars($reward['Reward_name']); ?></h3>
+                        <p class="reward-desc"><?php echo htmlspecialchars($reward['Description']); ?></p>
                         <div class="reward-footer">
-                            <span class="reward-cost"><?php echo number_format($reward['points_cost']); ?> PTS</span>
+                            <span class="reward-cost"><?php echo number_format($reward['Points_cost']); ?> PTS</span>
                             <?php if ($is_student): ?>
                                 <?php if ($is_out_of_stock): ?>
                                     <button class="btn-redeem btn-disabled" disabled>Out of Stock</button>
                                 <?php elseif ($can_redeem): ?>
-                                    <a href="redeem.php?id=<?php echo $reward['id']; ?>" class="btn-redeem btn-submit">Redeem Now</a>
+                                    <a href="redeem.php?id=<?php echo $reward['Reward_id']; ?>" class="btn-redeem btn-submit">Redeem Now</a>
                                 <?php else: ?>
-                                    <button class="btn-redeem btn-disabled" disabled>Need <?php echo number_format($reward['points_cost'] - $user_points); ?> PTS More</button>
+                                    <button class="btn-redeem btn-disabled" disabled>Need <?php echo number_format($reward['Points_cost'] - $user_points); ?> PTS More</button>
                                 <?php endif; ?>
                             <?php else: ?>
-                                <a href="login.php" class="btn-redeem btn-submit">Login to Redeem</a>
+                                <a href="sign_up.php" class="btn-redeem btn-submit">Login to Redeem</a>
                             <?php endif; ?>
                         </div>
                     </div>

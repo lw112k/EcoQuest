@@ -6,32 +6,33 @@ include("../config/db.php");
 include("../includes/header.php");
 
 // Only students can view this page
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student') {
-    header("Location: login.php");
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student' || !isset($_SESSION['student_id'])) {
+    header("Location: sign_up.php");
     exit();
 }
 
-$user_id = $_SESSION['user_id'];
+$student_id = $_SESSION['student_id'];
 $achievements = [];
 $db_error = '';
 
 if (isset($conn) && !$conn->connect_error) {
     // This query gets ALL achievements and checks which ones the user has earned
+    // (Based on Student_Achievement table)
     $sql = "
         SELECT
-            a.achievement_id,
-            a.name,
-            a.description,
-            a.icon,
-            ua.earned_at
-        FROM achievements a
-        LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-        ORDER BY a.achievement_id ASC
+            a.Achievement_id,
+            a.Title,
+            a.Description,
+            a.Exp_point,
+            sa.Status
+        FROM Achievement a
+        LEFT JOIN Student_Achievement sa ON a.Achievement_id = sa.Achievement_id AND sa.Student_id = ?
+        ORDER BY a.Exp_point ASC
     ";
 
     try {
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param("i", $user_id);
+        $stmt->bind_param("i", $student_id);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
@@ -48,8 +49,8 @@ if (isset($conn) && !$conn->connect_error) {
 
 <main class="rewards-page" style="padding: 40px 8%;">
     <div class="container">
-        <h1 class="page-title">My Achievements & Badges 🏆</h1>
-        <p class="page-subtitle">Collect all the badges to prove you're the ultimate Eco-Champion!</p>
+        <h1 class="page-title">My Achievements 🏆</h1>
+        <p class="page-subtitle">Completing quests can also unlock achievements, which give you bonus EXP for badges!</p>
 
         <?php if ($db_error): ?>
             <div class="message error-message"><?php echo htmlspecialchars($db_error); ?></div>
@@ -58,19 +59,22 @@ if (isset($conn) && !$conn->connect_error) {
         <div class="achievement-grid">
             <?php foreach ($achievements as $ach): ?>
                 <?php
-                    // Check if the achievement has been earned (earned_at will not be null)
-                    $is_earned = !is_null($ach['earned_at']);
+                    // Check if the achievement has been earned
+                    $is_earned = (isset($ach['Status']) && $ach['Status'] === 'Completed');
                     $card_class = $is_earned ? 'earned' : 'unearned';
                 ?>
                 <div class="ach-card <?php echo $card_class; ?>">
                     <div class="ach-icon">
-                        <i class="<?php echo htmlspecialchars($ach['icon']); ?>"></i>
+                        <i class="fas fa-star"></i>
                     </div>
                     <div class="ach-content">
-                        <h3 class="ach-name"><?php echo htmlspecialchars($ach['name']); ?></h3>
-                        <p class="ach-desc"><?php echo htmlspecialchars($ach['description']); ?></p>
-                        <?php if ($is_earned): ?>
-                            <p class="ach-date">Unlocked on: <?php echo date('d M Y', strtotime($ach['earned_at'])); ?></p>
+                        <h3 class="ach-name"><?php echo htmlspecialchars($ach['Title']); ?></h3>
+                        <p class="ach-desc"><?php echo htmlspecialchars($ach['Description']); ?></p>
+                        <p class="ach-date" style="font-weight: bold; color: #f6ad55;">
+                            +<?php echo htmlspecialchars($ach['Exp_point']); ?> EXP
+                        </p>
+                        <?php if (!$is_earned): ?>
+                            <p class="ach-date">Status: Locked</p>
                         <?php endif; ?>
                     </div>
                 </div>

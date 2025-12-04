@@ -15,7 +15,7 @@ if (!$is_logged_in || !in_array($user_role, ['moderator', 'admin'])) {
 }
 
 // =======================================================
-// 2. DATA FETCHING (UPDATED TO ONLY FETCH STUDENTS)
+// 2. DATA FETCHING (UPDATED TO JOIN User and Student)
 // =======================================================
 $error_message = null;
 $students = [];
@@ -24,11 +24,18 @@ if (!$conn) {
     $error_message = "Database connection failed.";
 } else {
     try {
-        // This query now only fetches users from the 'students' table.
+        // This query now fetches users from the 'User' table
+        // and joins 'Student' to get student-specific data
         $query = "
-            SELECT student_id, username, email, total_points, created_at
-            FROM students
-            ORDER BY created_at DESC
+            SELECT 
+                s.Student_id, 
+                u.Username, 
+                u.Email, 
+                s.Total_point, 
+                u.Created_at
+            FROM Student s
+            JOIN User u ON s.User_id = u.User_id
+            ORDER BY u.Created_at DESC
         ";
         
         $result = $conn->query($query);
@@ -66,7 +73,7 @@ if (!$conn) {
                     <table class="admin-data-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Student ID</th>
                                 <th>Username</th>
                                 <th>Email</th>
                                 <th>Points</th>
@@ -76,14 +83,14 @@ if (!$conn) {
                         <tbody>
                             <?php foreach ($students as $student): ?>
                                 <tr>
-                                    <td data-label="ID"><?php echo htmlspecialchars($student['student_id']); ?></td>
+                                    <td data-label="ID"><?php echo htmlspecialchars($student['Student_id']); ?></td>
                                     <td data-label="Username">
                                         <i class="fas fa-user-graduate user-icon"></i> 
-                                        <?php echo htmlspecialchars($student['username']); ?>
+                                        <?php echo htmlspecialchars($student['Username']); ?>
                                     </td>
-                                    <td data-label="Email"><?php echo htmlspecialchars($student['email']); ?></td>
-                                    <td data-label="Points"><?php echo number_format($student['total_points']); ?> Pts</td>
-                                    <td data-label="Joined On"><?php echo date('d M Y', strtotime($student['created_at'])); ?></td>
+                                    <td data-label="Email"><?php echo htmlspecialchars($student['Email']); ?></td>
+                                    <td data-label="Points"><?php echo number_format($student['Total_point']); ?> Pts</td>
+                                    <td data-label="Joined On"><?php echo date('d M Y', strtotime($student['Created_at'])); ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
