@@ -59,6 +59,20 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
 
     <div class="nav-auth">
         <?php if ($is_logged_in): ?>
+            <div class="notif-dropdown-container">
+                <button id="notif-bell" class="notif-btn" onclick="toggleNotifDropdown()">
+                    <i class="fas fa-bell"></i>
+                    <span id="notif-badge" class="notif-badge" style="display: none;">0</span>
+                </button>
+                <div id="notif-dropdown" class="notif-dropdown">
+                    <div class="notif-header">
+                        <span>Notifications</span>
+                    </div>
+                    <div id="notif-list" class="notif-list">
+                        <div class="notif-empty">Loading...</div>
+                    </div>
+                </div>
+            </div>
             <li><a href="<?php echo $base_path; ?>pages/profile.php" class="nav-btn-profile">
                 <i class="fas fa-user-circle"></i> Profile
             </a></li>
@@ -68,5 +82,5 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
         <?php endif; ?>
     </div>
 
-    <button class="nav-toggle" aria-label="Toggle navigation">&#9776;</button>
+    <button class="nav-toggle" id="mobile-menu-btn" aria-label="Toggle navigation">&#9776;</button>
 </nav>

@@ -89,7 +89,7 @@ main {
     width: 100%; /* Ensures the container grabs full screen width */
     
     /* Spacing & Positioning */
-    padding: 15px 8%; /* Keeps content aligned with your hero section */
+    padding: 15px 3%; /* Keeps content aligned with your hero section */
     position: sticky;
     top: 0;
     z-index: 1000;
@@ -155,14 +155,14 @@ main {
 }
 
 .nav-links li {
-    margin: 0 15px;
+    margin: 0 8px;
 }
 
 .nav-links a {
     text-decoration: none;
     color: #2C3E50; /* Darker text */
     font-weight: 500;
-    font-size: 1rem;
+    font-size: 0.9rem;
     padding: 5px 0;
     border-bottom: 3px solid transparent;
     transition: all 0.3s ease;
@@ -3569,4 +3569,186 @@ main {
     color: #fff;
     border-bottom-right-radius: 4px;
     align-self: flex-end;
+}
+/* ====================================
+   NOTIFICATION SYSTEM STYLES (Fixed)
+   ==================================== */
+
+/* Container for Bell + Dropdown */
+.notif-dropdown-container {
+    position: relative; /* Key for absolute positioning of dropdown */
+    display: inline-block;
+    margin-right: 15px;
+}
+
+/* Bell Button */
+.notif-btn {
+    background: none;
+    border: none;
+    color: #1D4C43; /* Forest Green */
+    font-size: 1.3rem;
+    cursor: pointer;
+    position: relative;
+    padding: 8px;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notif-btn:hover {
+    transform: scale(1.1);
+    color: #71B48D;
+}
+
+/* Red Badge Counter */
+.notif-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background-color: #E53E3E; /* Red */
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 50%;
+    min-width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #FAFAF0; /* Matches header bg */
+    transform: translate(25%, -25%);
+}
+
+/* Dropdown Menu Box */
+.notif-dropdown {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 100%; /* Push below the bell */
+    right: -10px; /* Align right edge slightly offset */
+    width: 320px; /* Fixed width */
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    z-index: 2000; /* High z-index to sit on top */
+    border: 1px solid #E2E8F0;
+    overflow: hidden;
+    margin-top: 10px; /* Space from bell */
+}
+
+/* Add a small arrow pointing up */
+.notif-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 18px; /* Align with bell center */
+    width: 12px;
+    height: 12px;
+    background-color: #1D4C43; /* Match header color */
+    transform: rotate(45deg);
+    z-index: -1;
+}
+
+/* Show class (added by JS) */
+.notif-dropdown.show {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* Header inside Dropdown */
+.notif-header {
+    background-color: #1D4C43;
+    color: #FFFFFF;
+    padding: 12px 15px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* List Container */
+.notif-list {
+    max-height: 350px;
+    overflow-y: auto;
+    background-color: #fff;
+}
+
+/* Individual Item */
+.notif-item {
+    display: block;
+    padding: 12px 15px;
+    border-bottom: 1px solid #F0F0F0;
+    text-decoration: none;
+    color: #333;
+    transition: background 0.2s;
+}
+
+.notif-item:last-child {
+    border-bottom: none;
+}
+
+.notif-item:hover {
+    background-color: #F7FAFC;
+}
+
+/* Unread Item Style */
+.notif-item.unread {
+    background-color: #F0FFF4; /* Light Mint */
+    border-left: 4px solid #71B48D;
+}
+
+.notif-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1D4C43;
+    margin-bottom: 4px;
+}
+
+.notif-message {
+    font-size: 0.85rem;
+    color: #4A5568;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limit to 2 lines */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.notif-time {
+    font-size: 0.75rem;
+    color: #A0AEC0;
+    margin-top: 6px;
+    display: block;
+    text-align: right;
+}
+
+.notif-empty {
+    padding: 30px;
+    text-align: center;
+    color: #A0AEC0;
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .notif-dropdown {
+        position: fixed; /* Fixed on mobile to center it */
+        top: 70px;
+        left: 5%;
+        right: 5%;
+        width: 90%;
+        max-width: none;
+    }
+    .notif-dropdown::before {
+        display: none; /* Hide arrow on mobile */
+    }
+}
+
+/* Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
