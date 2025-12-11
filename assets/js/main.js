@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================
-    // --- 2. FAQ POPUP LOGIC (Your Original Code) ---
+    // --- 2. FAQ POPUP LOGIC ---
     // ============================================
     const faqToggleButton = document.getElementById('faq-toggle-button');
     const faqCloseButton = document.getElementById('faq-close-btn');
@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /*================================================
-   LOGIN & REGISTER (Your Original Code - SAFE)
+   LOGIN & REGISTER
 ================================================*/
 
 // View Password Toggle
