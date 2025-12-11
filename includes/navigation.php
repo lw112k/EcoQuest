@@ -39,6 +39,7 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
         <?php elseif ($user_role == 'moderator'): ?>
             <li><a href="<?php echo $base_path; ?>pages/moderator/dashboard.php">Dashboard</a></li>
             <li><a href="<?php echo $base_path; ?>pages/moderator/manage_submissions.php">Submissions</a></li>
+            <li><a href="<?php echo $base_path; ?>pages/moderator/manage_reports.php">Reports</a></li>
             <li><a href="<?php echo $base_path; ?>pages/moderator/manage_users.php">Users</a></li>
             <li><a href="<?php echo $base_path; ?>pages/moderator/manage_quests.php">Quests</a></li>
             <li><a href="<?php echo $base_path; ?>pages/moderator/manage_rewards.php">Rewards</a></li>
