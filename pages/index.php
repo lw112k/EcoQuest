@@ -10,7 +10,7 @@ ini_set('display_errors', 1);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EcoQuest</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
+    <link  href="../assets/css/style.css" rel="stylesheet">
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     
 <body>
