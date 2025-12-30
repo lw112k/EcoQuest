@@ -81,13 +81,13 @@ main {
    NAVIGATION BAR/HEADER/FOOTER (PC Menu)
    ==================================== */
 
-.main-nav {
+.main-nav{
     /* Layout */
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%; /* Ensures the container grabs full screen width */
-    
+
     /* Spacing & Positioning */
     padding: 15px 3%; /* Keeps content aligned with your hero section */
     position: sticky;
@@ -96,7 +96,7 @@ main {
     
     /* Styling (Light Cream Theme) */
     background-color: #FAFAF0; 
-    border-bottom: 1px solid rgba(29, 76, 67, 0.1);
+    border-bottom: 2px solid rgba(29, 76, 67, 0.1);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
@@ -154,11 +154,11 @@ main {
     padding: 0;
 }
 
-.nav-links li {
-    margin: 0 8px;
+.dropdown-wrapper{
+    position: static;
 }
 
-.nav-links a {
+.dropdown-wrapper a{
     text-decoration: none;
     color: #2C3E50; /* Darker text */
     font-weight: 500;
@@ -166,13 +166,88 @@ main {
     padding: 5px 0;
     border-bottom: 3px solid transparent;
     transition: all 0.3s ease;
+    margin: 0 8px;
 }
 
-.nav-links a:hover,
-.nav-links a:active {
+.dropdown-title:hover,
+.dropdown-title:active {
     color: #1D4C43; /* Forest Green on hover */
     border-bottom: 3px solid #71B48D; /* Mint Green highlight */
 }
+
+.dropdown-content{
+/* Layout */
+    position: absolute;
+    top: 80%;
+    left: 0;
+    width: 100%;
+    background-color: #FFFFFF;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+    padding: 40px 0;
+    display: flex; /* Always flex, but hidden via opacity */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+
+    /* Transition Logic */
+    opacity: 0;            /* Make it invisible */
+    visibility: hidden;    /* Prevent clicking when hidden */
+    transform: translateY(10px); /* Start slightly lower for a slide effect */
+    transition: all 0.3s ease-in-out;
+
+}
+
+/* Style individual items in the grid */
+.dropdown-content li {
+    list-style: none;
+    flex: 1; /* Each item takes equal width */
+    max-width: 250px;
+    text-align: center;
+    border-right: 1px solid #EEEEEE;
+}
+
+.dropdown-content li:last-child {
+    border-right: none;
+}
+
+.dropdown-content li a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    padding: 20px;
+}
+
+/* Image/Icon Styling */
+.dropdown-img {
+    width: 70%; /* Larger icons like the image */
+    margin-bottom: 10px;
+}
+
+.dropdown-content li a:hover,p.dropdown-title:hover{
+    background-color: #f3f3f3;
+    color: #1D4C43; /* Forest Green on hover */
+    border-bottom: 3px solid #71B48D; /* Mint Green highlight */
+}
+
+
+
+.dropdown-wrapper:hover .dropdown-content{
+    display: flex;
+    opacity: 1;            /* Fade in */
+    visibility: visible;   /* Make it interactive */
+    transform: translateY(0); /* Slide up to its natural position */
+}
+
+.dropdown-title p {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
 
 /* ====================================
    Auth Buttons (Updated for Profile Link)

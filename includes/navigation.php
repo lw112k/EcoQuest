@@ -24,17 +24,32 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
             <li><a href="<?php echo $base_path; ?>pages/about.php">About</a></li>
             <li><a href="<?php echo $base_path; ?>pages/leaderboard.php">Leaderboard</a></li>
             <li><a href="<?php echo $base_path; ?>pages/rewards.php">Rewards</a></li>
-
+            
         <?php elseif ($user_role == 'student'): ?>
-            <li><a href="<?php echo $base_path; ?>pages/dashboard.php">Dashboard</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/quests.php">Quests</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/leaderboard.php">Leaderboard</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/rewards.php">Rewards</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/my_rewards.php">Claimed</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/achievements.php">Achievements</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/validate.php">Submissions</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/forum.php">Forum</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/feedback.php">Feedback</a></li>
+            <li class="dropdown-wrapper"><a href="" class="dropdown-title">Dashboard</a></li>
+            <li class="dropdown-wrapper">
+                <a href="" class="dropdown-title">Activity</a>
+                <ul class="dropdown-content">
+                    <li><a href=""><img src="../assets/images/quest.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Quests</strong></p></a></li>
+                    <li><a href=""><img src="../assets/images/leaderboard.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Leaderboard</strong></p></a></li>
+                    <li><a href=""><img src="../assets/images/submission.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Submissions</strong></p></a></li>
+                </ul>
+            </li>
+            <li class="dropdown-wrapper">
+                <a href="" class="dropdown-title">Rewards</a>
+                <ul class="dropdown-content">
+                    <li><a href=""><img src="../assets/images/reward.png" alt="reward image" class="dropdown-img"><p><strong class="dropdown-title-text">Rewards</strong></p></a></li>
+                    <li><a href=""><img src="../assets/images/claim.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Claimed</strong></p></a></li>
+                    <li><a href=""><img src="../assets/images/achievement.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Achievements</strong></p></a></li>
+                </ul>
+            </li>
+            <li class="dropdown-wrapper">
+                <a href="" class="dropdown-title">Community</a>
+                <ul class="dropdown-content">
+                    <li><a href=""><img src="../assets/images/forum.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Forum</strong></p></a></li>
+                    <li><a href=""><img src="../assets/images/feedback.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Feedback</strong></p></a></li>
+                </ul>
+            </li>
 
         <?php elseif ($user_role == 'moderator'): ?>
             <li><a href="<?php echo $base_path; ?>pages/moderator/dashboard.php">Dashboard</a></li>
