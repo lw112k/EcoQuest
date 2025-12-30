@@ -21,12 +21,12 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
 
     <div class="nav-links" id="navLinks">
         <?php if ($user_role == 'guest'): ?>
-            <li><a href="<?php echo $base_path; ?>pages/about.php">About</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/leaderboard.php">Leaderboard</a></li>
-            <li><a href="<?php echo $base_path; ?>pages/rewards.php">Rewards</a></li>
-            
+            <li class="dropdown-wrapper"><a href="<?php echo $base_path; ?>pages/about.php" class="dropdown-title">About</a></li>
+            <li class="dropdown-wrapper"><a href="<?php echo $base_path; ?>pages/leaderboard.php" class="dropdown-title">Leaderboard</a></li>
+            <li class="dropdown-wrapper"><a href="<?php echo $base_path; ?>pages/rewards.php" class="dropdown-title">Rewards</a></li>
+
         <?php elseif ($user_role == 'student'): ?>
-            <li class="dropdown-wrapper"><a href="" class="dropdown-title">Dashboard</a></li>
+            <li class="dropdown-wrapper"><a href="<?php echo $base_path; ?>pages/dashboard.php" class="dropdown-title">Dashboard</a></li>
             <li class="dropdown-wrapper">
                 <a href="" class="dropdown-title">Activity</a>
                 <ul class="dropdown-content">
@@ -50,6 +50,7 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
                     <li><a href=""><img src="../assets/images/feedback.png" alt="" class="dropdown-img"><p><strong class="dropdown-title-text">Feedback</strong></p></a></li>
                 </ul>
             </li>
+        
 
         <?php elseif ($user_role == 'moderator'): ?>
             <li><a href="<?php echo $base_path; ?>pages/moderator/dashboard.php">Dashboard</a></li>

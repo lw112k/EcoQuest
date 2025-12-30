@@ -231,7 +231,6 @@ main {
 }
 
 
-
 .dropdown-wrapper:hover .dropdown-content{
     display: flex;
     opacity: 1;            /* Fade in */
