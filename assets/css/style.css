@@ -150,7 +150,7 @@ main {
 .nav-links {
     list-style: none;
     display: flex;
-    margin-left: 10em;
+    margin: 0;
     padding: 0;
 }
 
