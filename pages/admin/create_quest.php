@@ -1,11 +1,13 @@
 <?php
-// pages/admin/create_quest.php
+
+ob_start();
+
 require_once '../../includes/header.php'; 
 
-// 1. AUTHORIZATION CHECK
-$is_logged_in = $is_logged_in ?? false;
-$user_role = $user_role ?? 'guest';
-$admin_id = $_SESSION['admin_id'] ?? null; // Get the currently logged-in admin's ID
+// 权限检查逻辑移至顶部
+$is_logged_in = isset($_SESSION['user_id']);
+$user_role = $_SESSION['user_role'] ?? 'guest';
+$admin_id = $_SESSION['admin_id'] ?? null;
 
 if (!$is_logged_in || $user_role !== 'admin' || !$admin_id) {
     header('Location: ../../index.php?error=unauthorized'); 
@@ -18,13 +20,13 @@ $form_data = [
     'title' => '',
     'description' => '',
     'points_award' => '',
-    'CategoryID' => '', // Use CategoryID from previous fix
-    'proof_type' => 'Image', // <-- LOCKED
+    'CategoryID' => '',
+    'proof_type' => 'Image',
     'instructions' => '',
     'is_active' => 1,
 ];
 
-// --- Load categories from database ---
+// --- 加载分类数据 ---
 $categories_from_db = [];
 if (isset($conn) && $conn) {
     try {
@@ -36,62 +38,49 @@ if (isset($conn) && $conn) {
         $error_message = "Failed to load categories: " . $e->getMessage();
     }
 }
-// $proof_types = ['Image', 'Text/Log', 'Both']; // <-- REMOVED
 
-// 2. HANDLE FORM SUBMISSION
+// 2. 处理表单提交 (必须在 require header.php 之前，因为这里有跳转指令)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $form_data['title'] = filter_input(INPUT_POST, 'title', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['description'] = filter_input(INPUT_POST, 'description', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['points_award'] = filter_input(INPUT_POST, 'points_award', FILTER_VALIDATE_INT);
     $form_data['CategoryID'] = filter_input(INPUT_POST, 'CategoryID', FILTER_VALIDATE_INT);
-    $form_data['proof_type'] = 'Image'; // <-- LOCKED VALUE
+    $form_data['proof_type'] = 'Image';
     $form_data['instructions'] = filter_input(INPUT_POST, 'instructions', FILTER_SANITIZE_SPECIAL_CHARS);
     $form_data['is_active'] = isset($_POST['is_active']) ? 1 : 0; 
 
-    // --- Validation ---
     if (empty($form_data['title']) || $form_data['points_award'] === false || empty($form_data['instructions']) || empty($form_data['CategoryID'])) {
-        $error_message = "Please fill in all required fields (Title, Points, Category, and Instructions) correctly.";
+        $error_message = "Please fill in all required fields correctly.";
     } elseif ($form_data['points_award'] <= 0) {
         $error_message = "Points Award must be a positive number.";
     } else {
-        // --- Database Insertion ---
         if (isset($conn) && $conn) {
             try {
-                $sql_insert = "
-                    INSERT INTO Quest (
-                        Title, Description, Points_award, CategoryID, Proof_type, Instructions, Is_active, Created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ";
-                
+                $sql_insert = "INSERT INTO Quest (Title, Description, Points_award, CategoryID, Proof_type, Instructions, Is_active, Created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $conn->prepare($sql_insert);
-                $stmt->bind_param(
-                    "ssiisssi", 
-                    $form_data['title'], 
-                    $form_data['description'], 
-                    $form_data['points_award'], 
-                    $form_data['CategoryID'], 
-                    $form_data['proof_type'], // This will always be 'Image'
-                    $form_data['instructions'], 
-                    $form_data['is_active'], 
-                    $admin_id 
+                $stmt->bind_param("ssiisssi", 
+                    $form_data['title'], $form_data['description'], $form_data['points_award'], 
+                    $form_data['CategoryID'], $form_data['proof_type'], $form_data['instructions'], 
+                    $form_data['is_active'], $admin_id 
                 );
 
                 if ($stmt->execute()) {
-                    $success_message = "Quest '{$form_data['title']}' created successfully! Redirecting...";
+                    $success_message = "Quest created successfully! Redirecting...";
+                    // 现在 header() 将正常工作，因为还没有 HTML 输出
                     header("Refresh: 2; URL=manage_quests.php?success=" . urlencode("Quest created!"));
                 } else {
                     throw new Exception("Execution Failed: " . $stmt->error);
                 }
                 $stmt->close();
-
             } catch (Exception $e) {
                 $error_message = "Failed to save quest. Error: " . $e->getMessage();
             }
-        } else {
-            $error_message = "Database connection object is unavailable.";
         }
     }
 }
+
+// --- 逻辑处理完毕后，再引入头部 HTML ---
+require_once '../../includes/header.php'; 
 ?>
 
 <main class="admin-page">
@@ -107,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form method="POST" action="create_quest.php" class="quest-form">
-            
             <div class="form-group">
                 <label for="title">Quest Title <span class="required">*</span></label>
                 <input type="text" id="title" name="title" value="<?php echo htmlspecialchars($form_data['title']); ?>" required maxlength="100">
@@ -137,8 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php endforeach; ?>
                     </select>
                 </div>
-
-                </div>
+            </div>
 
             <div class="form-group">
                 <label for="instructions">Detailed Instructions <span class="required">*</span></label>
@@ -158,7 +145,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     Cancel and Back to List
                 </a>
             </div>
-
         </form>
     </div>
 </main>
@@ -178,14 +164,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .required { color: #E74C3C; }
     .form-group input[type="text"], .form-group input[type="number"], .form-group select, .form-group textarea { padding: 10px 15px; border: 1px solid #DDEEE5; border-radius: 6px; font-size: 1rem; }
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #71B48D; outline: none; box-shadow: 0 0 0 2px rgba(113, 180, 141, 0.2); }
-    .hint { font-size: 0.8rem; color: #777; margin-top: 4px; }
     .checkbox-group { flex-direction: row; align-items: center; margin-top: 10px; }
     .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; margin-right: 10px; }
     .checkbox-group .inline-label { margin-bottom: 0; cursor: pointer; }
     .form-row { display: flex; flex-wrap: wrap; gap: 20px; }
     .w-full { width: 100%; }
-    .md\:w-1\/3 { flex-basis: calc(33.333% - 13.333px); }
-    /* === STYLE ADDED === */
     .md\:w-1\/2 { flex-basis: calc(50% - 10px); }
     .form-actions { display: flex; gap: 15px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; }
     .btn-primary-submit, .btn-secondary-cancel { padding: 12px 20px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background 0.3s; text-decoration: none; }
@@ -193,10 +176,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .btn-secondary-cancel { background: #F4F7F6; color: #5A7F7C; border: 1px solid #DDEEE5; }
     @media (max-width: 768px) {
         .form-row { flex-direction: column; gap: 15px; }
-        .md\:w-1\/3 { flex-basis: 100%; }
-        /* === STYLE ADDED === */
         .md\:w-1\/2 { flex-basis: 100%; }
     }
 </style>
 
-<?php require_once '../../includes/footer.php'; ?>
+<?php 
+require_once '../../includes/footer.php'; 
+ob_end_flush(); // 结束缓冲
+?>
