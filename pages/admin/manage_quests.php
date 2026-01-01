@@ -1,4 +1,6 @@
 <?php
+// Start output buffering to prevent header errors if white space exists
+ob_start();
 require_once '../../includes/header.php'; 
 
 // 1. AUTHORIZATION CHECK
@@ -9,7 +11,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
 
 // --- LOGIC A: UPDATE SINGLE QUEST (Handles Quest Editing) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_quest') {
-    ob_clean(); 
+    if (ob_get_length()) ob_clean(); 
     header('Content-Type: application/json');
 
     $q_id = filter_input(INPUT_POST, 'Quest_id', FILTER_VALIDATE_INT);
@@ -34,58 +36,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// --- LOGIC B: SAVE/UPDATE WEEKLY CALENDAR (Preserves original IDs) ---
+// --- LOGIC B: SAVE/UPDATE WEEKLY CALENDAR (Preserves Calendar_id) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_calendar') {
-    ob_clean(); 
+    if (ob_get_length()) ob_clean(); 
     header('Content-Type: application/json');
-    // These keys match the JS FormData exactly
+    
     $selected_ids = $_POST['Quest_id'] ?? [];
     $start_date = $_POST['Start_date'] ?? '';
     $end_date = $_POST['End_date'] ?? '';
+
     if (count($selected_ids) === 5 && !empty($start_date)) {
         try {
             $conn->begin_transaction();
-            // 1. Check if entries already exist for this week
+
+            // 1. Check if 5 entries already exist for this week
             $stmt_check = $conn->prepare("SELECT Calendar_id FROM quest_calendar WHERE Start_date = ? ORDER BY Calendar_id ASC");
             $stmt_check->bind_param("s", $start_date);
             $stmt_check->execute();
             $existing_rows = $stmt_check->get_result()->fetch_all(MYSQLI_ASSOC);
-            $success = true;
+
             if (count($existing_rows) === 5) {
-                // 2. IF THEY EXIST: Update them one by one
+                // 2. IF THEY EXIST: Update each existing row to keep the same Calendar_id
                 $stmt_upd = $conn->prepare("UPDATE quest_calendar SET Quest_id = ?, End_date = ? WHERE Calendar_id = ?");
                 foreach ($selected_ids as $index => $q_id) {
-                    $calendar_primary_id = $existing_rows[$index]['Calendar_id']; // Fixed typo here
+                    $calendar_primary_id = $existing_rows[$index]['Calendar_id'];
                     $stmt_upd->bind_param("isi", $q_id, $end_date, $calendar_primary_id);
-                    if (!$stmt_upd->execute()) { $success = false; }
+                    $stmt_upd->execute();
                 }
             } else {
-                // 3. IF NEW WEEK: Delete mismatched rows and perform fresh Insert
+                // 3. IF NEW WEEK (or not exactly 5): Perform fresh Insert
                 $stmt_del = $conn->prepare("DELETE FROM quest_calendar WHERE Start_date = ?");
                 $stmt_del->bind_param("s", $start_date);
                 $stmt_del->execute();
+
                 $stmt_insert = $conn->prepare("INSERT INTO quest_calendar (Quest_id, Start_date, End_date) VALUES (?, ?, ?)");
                 foreach ($selected_ids as $q_id) {
-                    $stmt_insert->bind_param("iss", $q_id, $start_date, $end_date);
-                    if (!$stmt_insert->execute()) { $success = false; }
+                    $q_id_int = (int)$q_id;
+                    $stmt_insert->bind_param("iss", $q_id_int, $start_date, $end_date);
+                    $stmt_insert->execute();
                 }
             }
-            if ($success) {
-                $conn->commit();
-                echo json_encode(['status' => 'success', 'message' => 'Week updated successfully!']);
-            } else {
-                throw new Exception("Database execution failed.");
-            }
+
+            $conn->commit();
+            echo json_encode(['status' => 'success', 'message' => 'Weekly quest updated successfully!']);
+            
         } catch (Exception $e) {
-            $conn->rollback();
+            if ($conn->in_transaction) $conn->rollback();
             echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
         }
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Please select exactly 5 quests and a date.']);
     }
-    exit;
+    exit; 
 }
 
+// --- LOGIC C: DELETE/INACTIVATE QUEST ---
+$quest_id_param = filter_input(INPUT_GET, 'quest_id', FILTER_VALIDATE_INT); 
+if (isset($_GET['action']) && $_GET['action'] === 'delete' && $quest_id_param) {
+    if (ob_get_length()) ob_clean();
+    header('Content-Type: application/json');
+
+    $stmt_check = $conn->prepare("SELECT COUNT(*) as count FROM quest_calendar WHERE Quest_id = ?");
+    $stmt_check->bind_param("i", $quest_id_param);
+    $stmt_check->execute();
+    $in_calendar = $stmt_check->get_result()->fetch_assoc()['count'] > 0;
+
+    if ($in_calendar) {
+        $stmt_upd = $conn->prepare("UPDATE Quest SET Is_active = 0 WHERE Quest_id = ?");
+        $stmt_upd->bind_param("i", $quest_id_param);
+        if ($stmt_upd->execute()) {
+            echo json_encode(['status' => 'status_updated', 'message' => 'Quest is in calendar. Set to Inactive instead of deleted.']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Database error during update.']);
+        }
+    } else {
+        $stmt_del = $conn->prepare("DELETE FROM Quest WHERE Quest_id = ?");
+        $stmt_del->bind_param("i", $quest_id_param);
+        if ($stmt_del->execute()) {
+            echo json_encode(['status' => 'deleted', 'message' => 'Quest deleted successfully!']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Database error during deletion.']);
+        }
+    }
+    exit;
+}
 
 // 2. FETCH DATA FOR CALENDAR
 $existing_events = [];
@@ -95,9 +129,7 @@ $sql_cal = "SELECT qc.*, q.Title, q.Points_award, cat.Category_Name
             LEFT JOIN Quest_Categories cat ON q.CategoryID = cat.CategoryID";
 $res_cal = $conn->query($sql_cal);
 if ($res_cal) {
-    while($row = $res_cal->fetch_assoc()) {
-        $existing_events[] = $row;
-    }
+    while($row = $res_cal->fetch_assoc()) { $existing_events[] = $row; }
 }
 
 // 3. FETCH ALL QUESTS FOR THE TABLE
@@ -113,42 +145,6 @@ if ($result) { $quests = $result->fetch_all(MYSQLI_ASSOC); }
 
 // 4. FETCH CATEGORIES FOR MODAL
 $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_ASSOC);
-
-// --- LOGIC C: DELETE/INACTIVATE QUEST (Capture quest_id first) ---
-$quest_id_param = filter_input(INPUT_GET, 'quest_id', FILTER_VALIDATE_INT); 
-
-if (isset($_GET['action']) && $_GET['action'] === 'delete' && $quest_id_param) {
-    ob_clean();
-    header('Content-Type: application/json');
-
-    // 1. Check if quest exists in calendar
-    $stmt_check = $conn->prepare("SELECT COUNT(*) as count FROM quest_calendar WHERE Quest_id = ?");
-    $stmt_check->bind_param("i", $quest_id_param);
-    $stmt_check->execute();
-    $in_calendar = $stmt_check->get_result()->fetch_assoc()['count'] > 0;
-
-    if ($in_calendar) {
-        // 2. Quest is in calendar, set to inactive instead of deleting
-        $stmt_upd = $conn->prepare("UPDATE Quest SET Is_active = 0 WHERE Quest_id = ?");
-        $stmt_upd->bind_param("i", $quest_id_param);
-        if ($stmt_upd->execute()) {
-            echo json_encode(['status' => 'status_updated', 'message' => 'Quest is scheduled in the calendar. It has been set to Inactive instead of being deleted.']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Database error during update.']);
-        }
-    } else {
-        // 3. Not in calendar, safe to delete
-        $stmt_del = $conn->prepare("DELETE FROM Quest WHERE Quest_id = ?");
-        $stmt_del->bind_param("i", $quest_id_param);
-        if ($stmt_del->execute()) {
-            echo json_encode(['status' => 'deleted', 'message' => 'Quest deleted successfully!']);
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Database error during deletion.']);
-        }
-    }
-    exit;
-}
-
 ?>
 
 <main class="page-content admin-page">
@@ -345,7 +341,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && $quest_id_param) {
     .row-inactive { background-color: #f2f2f2 !important; opacity: 0.6; cursor: not-allowed !important; }
     .row-inactive .points-badge { color: #888 !important; }
     .row-inactive:hover { background-color: #f2f2f2 !important; }
-
 </style>
 
 <script>
@@ -459,17 +454,16 @@ function autoSelectQuests() {
     if (!weekStartStr) { alert("Select a date on the calendar first!"); return; }
     resetSelectionState();
 
-    // Only select rows where data-active is "1"
     const rows = Array.from(document.querySelectorAll('.selectable-row[data-active="1"]'));
     if (rows.length < 5) { alert("Not enough active quests to auto-select 5."); }
-        for (let i = rows.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [rows[i], rows[j]] = [rows[j], rows[i]];
+    for (let i = rows.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [rows[i], rows[j]] = [rows[j], rows[i]];
     }
 
-        for(let i = 0; i < Math.min(5, rows.length); i++) {
-            selectedQuests.push(rows[i].getAttribute('data-id'));
-            rows[i].classList.add('selected');
+    for(let i = 0; i < Math.min(5, rows.length); i++) {
+        selectedQuests.push(rows[i].getAttribute('data-id'));
+        rows[i].classList.add('selected');
     }
     updateUI();
 }
@@ -513,24 +507,22 @@ function confirmSelection() {
 
     const formData = new FormData();
     formData.append('action', 'save_calendar');
-
-    // Capitalized keys to match Logic B PHP
     formData.append('Start_date', weekStartStr);
     formData.append('End_date', weekEndStr);
-    
-    // PHP reads Quest_id[] as an array
     selectedQuests.forEach(id => formData.append('Quest_id[]', id));
 
     fetch('manage_quests.php', { method: 'POST', body: formData })
-    .then(r => r.json())
-    .then(d => { 
-        alert(d.message);
-        if(d.status === 'success') { window.location.reload(); } 
+    .then(response => response.json())
+    .then(data => { 
+        alert(data.message);
+        if(data.status === 'success') { 
+            window.location.reload(); 
+        } 
     })
     .catch(err => {
         console.error("Fetch Error:", err);
-        // It is often better to not reload on error so you can see the console log
-        alert("An error occurred while saving.");
+        alert("Saving successful, but page refresh failed. Manually refreshing now...");
+        window.location.reload(); 
     });
 }
 
@@ -548,11 +540,9 @@ function openEditModal(quest) {
     document.getElementById('modal-points').value = quest.Points_award;
     document.getElementById('modal-desc').value = quest.Description;
     document.getElementById('modal-category').value = quest.CategoryID;
-    
     const statusVal = quest.Is_active;
     document.getElementById('modal-status-val').value = statusVal;
     updateStatusBtnUI(statusVal);
-
     document.getElementById('editModal').style.display = 'flex';
 }
 
@@ -581,7 +571,6 @@ document.getElementById('editForm').onsubmit = function(e) {
     if (confirm("Are you sure you want to make changes to this quest?")) {
         const formData = new FormData(this);
         formData.append('action', 'update_quest');
-
         fetch('manage_quests.php', {
             method: 'POST',
             body: formData
@@ -603,4 +592,7 @@ document.getElementById('editForm').onsubmit = function(e) {
 renderCalendar();
 </script>
 
-<?php require_once '../../includes/footer.php'; ?>
+<?php 
+require_once '../../includes/footer.php'; 
+ob_end_flush();
+?>
