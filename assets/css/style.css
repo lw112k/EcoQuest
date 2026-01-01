@@ -220,7 +220,7 @@ main {
 
 /* Image/Icon Styling */
 .dropdown-img {
-    width: 70%; /* Larger icons like the image */
+    width: 50%; /* Larger icons like the image */
     margin-bottom: 10px;
 }
 
