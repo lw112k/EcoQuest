@@ -247,6 +247,77 @@ main {
     margin-bottom: 5px;
 }
 
+@media (max-width: 768px) {
+    /* 1. Hide the horizontal nav and stack it vertically */
+    .nav-links {
+        display: none; /* Hidden by default, toggled by JS */
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: #FAFAF0;
+        padding: 20px 0;
+        box-shadow: 0 5px 10px rgba(0,0,0,0.1);
+    }
+
+    /* Show menu when "active" class is added via JS */
+    .nav-links.active {
+        display: flex;
+    }
+
+    /* 2. Reset Dropdown Behavior for Mobile */
+    .dropdown-wrapper {
+        width: 100%;
+    }
+
+    .dropdown-content {
+        position: static; /* Push content down instead of floating over */
+        display: none;    /* Hidden until clicked */
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        width: 100%;
+        padding: 10px 0;
+        flex-direction: column; /* Stack icons and text */
+        box-shadow: none;
+        background-color: #F0F0E0; /* Slightly darker to distinguish from main links */
+    }
+
+    /* Show dropdown when active */
+    .dropdown-wrapper.open .dropdown-content {
+        display: flex;
+    }
+
+    /* 3. Adjust Items inside Dropdown */
+    .dropdown-content li {
+        max-width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .dropdown-content li a {
+        flex-direction: row; /* Icon on the left, text on the right */
+        justify-content: flex-start;
+        padding: 15px 30px;
+    }
+
+    .dropdown-img {
+        width: 30px; /* Smaller icons for mobile */
+        margin-bottom: 0;
+        margin-right: 15px;
+    }
+
+    /* 4. Show the Hamburger Button */
+    .nav-toggle {
+        display: block;
+        background: none;
+        border: none;
+        font-size: 2rem;
+        color: #1D4C43;
+        cursor: pointer;
+    }
+}
 
 /* ====================================
    Auth Buttons (Updated for Profile Link)
