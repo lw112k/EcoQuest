@@ -199,16 +199,15 @@ function togglePassword(event, inputId) {
 }
 
 // Login / Register Slider
-var x = document.getElementById('login');
-var y = document.getElementById('register');
-var z = document.getElementById('btn');       
-function login(){
-    x.style.left = "27px";
-    y.style.right = "-550px";
+var container = document.querySelector('.auth-container');
+var z = document.getElementById('btn');
+
+function login() {
+    container.classList.remove('register-mode');
     z.style.left = "0px"; 
 }
-function register(){
-    x.style.left = "-550px";
-    y.style.right = "25px";
+
+function register() {
+    container.classList.add('register-mode');
     z.style.left = "50%"; 
 }

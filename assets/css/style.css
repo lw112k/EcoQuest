@@ -1104,7 +1104,7 @@ main {
 
 
 /*====================
-    LOGIN
+    LOGIN PAGE
 ======================*/
 /*--Login n Register Background--*/
 .auth-page {
@@ -1115,6 +1115,10 @@ main {
     justify-content: center; /* Center Horizontally */
     align-items: center;     /* Center Vertically */
     overflow: hidden;
+}
+
+.auth-title{
+    text-align: center;
 }
 
 
@@ -1373,60 +1377,95 @@ main {
     font-weight: 500;
 }
 
-/* =========================================
-   MOBILE RESPONSIVENESS (iPhone SE & Others)
-   ========================================= */
+/* Base Card Styles */
+.log-auth-card, .reg-auth-card {
+    position: absolute;
+    width: 90%; /* Use percentage for flexibility */
+    left: 5%;   /* Center the card within container */
+    transition: transform 0.5s ease-in-out, opacity 0.5s;
+}
 
-@media screen and (max-width: 900px) {
+/* Initial States */
+.log-auth-card {
+    transform: translateX(0);
+    opacity: 1;
+}
 
-    /* 1. Reset the Main Page Layout */
+.reg-auth-card {
+    transform: translateX(150%); /* Move far to the right */
+    opacity: 0;
+}
+
+/* "Register Mode" - Activated via JS class */
+.register-mode .log-auth-card {
+    transform: translateX(-150%); /* Move login to the left */
+    opacity: 0;
+}
+
+.register-mode .reg-auth-card {
+    transform: translateX(0); /* Bring register to center */
+    opacity: 1;
+}
+
+/*Login Mobile View*/
+@media screen and (max-width: 768px) {
+    .auth-title{
+        font-size: 1.5em;
+        text-align: center;
+    }
+
     .auth-page {
+        flex-direction: column; /* Stack container and side panel vertically */
         height: auto;
-        min-height: 100vh;
-        padding: 80px 15px 40px 15px; /* Add top padding so nav doesn't cover it */
-        align-items: flex-start; /* Aligns card to top rather than center on short screens */
+        padding: 20px 0;
     }
 
-    /* 2. Stack the layout vertically */
-    .auth-card-wrapper {
-        flex-direction: column;
-        width: 100%;
-        max-width: 400px; /* Prevents it from getting too wide on tablets */
-        box-shadow: none; /* Optional: Cleaner look on mobile */
-        border-radius: 20px;
-    }
-
-    /* 3. Hide the Side Panel (Green Box) */
-    /* On mobile, we only need the form. The side info takes up too much space. */
-    .auth-side-panel {
-        display: none; 
-    }
-
-    /* 4. Fix the Form Container Width */
     .auth-container {
-        width: 100%; /* crucial: changes from fixed 450px to fluid */
-        height: 650px; /* Slightly shorter to fit mobile screens better */
-        padding: 40px 20px; /* Reduce padding so inputs have room */
+        width: 95%;
+        height: 720px; /* Adjust height for mobile */
+        margin: 20px auto;
+    }
+    
+    .auth-side-panel {
+        display: none; /* Hide side panel on iPhone SE */
     }
 
-    /* 5. Adjust the Sliding Cards */
-    .log-auth-card, 
+    .btn-sub {
+        width: 100%; /* Full width button for thumbs */
+    }
+
+    /* Adjust the login/register card widths */
+    .log-auth-card, .reg-auth-card {
+        width: 88%;
+        left: 6%; /* Center them slightly better */
+    }
+
+    /* Fix the slider positioning for mobile screens */
     .reg-auth-card {
-        width: 90%; /* Make forms slightly wider on mobile */
-        left: 5%;   /* Center them (5% left + 90% width = centered) */
-        right: auto; /* Reset right positioning */
+        right: -100%; /* Use percentages instead of fixed -550px */
     }
     
-    /* Re-position the register card off-screen for the animation logic */
-    /* Note: JS likely toggles a class. Ensure JS sliding still works. 
-       If your JS sets specific pixel 'left' values, the animation might look weird.
-       Ideally, use percentages in JS or CSS classes for movement. */
-    
-    /* 6. Fix the Toggle Switch (Login/Register Buttons) */
     .switch {
+        bottom: 20px;
+        left: 5%;
         width: 90%;
-        left: 5%; /* Center the switch */
-        bottom: 30px; /* Move it up slightly */
+    }
+    
+    .auth-container {
+        width: 95%;
+        height: 800px;
+    }
+
+    .register-mode .log-auth-card {
+        left: -100%; 
+    }
+
+    .reg-auth-card {
+        right: -100%; 
+    }
+
+    .register-mode .reg-auth-card {
+        right: 6%; 
     }
 }
 
