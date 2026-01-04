@@ -378,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     .options-dropdown button.btn-delete-opt { color: #e74c3c; }
 
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; }
-    .redesigned-modal { background: #fff; border-radius: 20px;  border: 3px dashed #bbb; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%;}
+    .redesigned-modal { background: #fff; border-radius: 20px;  border: 3px dashed #bbb; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
     .modal-top-row { display: flex; gap: 25px; margin-bottom: 20px; }
     .image-upload-container { width: 160px; height: 160px; min-width: 160px; background: #F0F0F0; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 15px; border: 2px solid var(--eco-border); overflow: hidden; }
     .image-upload-container img { width: 100%; height: 100%; object-fit: cover; }

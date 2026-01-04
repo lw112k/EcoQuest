@@ -2,25 +2,82 @@
 // pages/forum.php
 session_start();
 include("../config/db.php");
-include("../includes/header.php");
 
-// Authorization
-$user_id = $_SESSION['user_id'] ?? null;
-$user_role = $_SESSION['user_role'] ?? 'guest';
-if (!in_array($user_role, ['student', 'moderator', 'admin'])) {
-    header("Location: login.php");
-    exit();
+// --- 1. 处理点赞逻辑 (AJAX) - 必须在最顶部以确保返回纯 JSON ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_like'])) {
+    if (ob_get_length()) ob_clean();
+    header('Content-Type: application/json');
+    
+    $current_session_user_id = $_SESSION['user_id'] ?? null;
+    $post_id = (int)$_POST['post_id'];
+
+    if ($current_session_user_id && $post_id && isset($conn)) {
+        $stmt = $conn->prepare("SELECT Like_id FROM post_likes WHERE User_id = ? AND Post_id = ?");
+        $stmt->bind_param("ii", $current_session_user_id, $post_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        
+        if ($res->num_rows > 0) {
+            $stmt = $conn->prepare("DELETE FROM post_likes WHERE User_id = ? AND Post_id = ?");
+            $stmt->bind_param("ii", $current_session_user_id, $post_id);
+            $stmt->execute();
+            $status = 'unliked';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO post_likes (User_id, Post_id) VALUES (?, ?)");
+            $stmt->bind_param("ii", $current_session_user_id, $post_id);
+            $stmt->execute();
+            $status = 'liked';
+        }
+        
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM post_likes WHERE Post_id = ?");
+        $stmt->bind_param("i", $post_id);
+        $stmt->execute();
+        $new_count = $stmt->get_result()->fetch_assoc()['count'];
+        
+        echo json_encode(['status' => $status, 'new_count' => $new_count]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Unauthorized or invalid data']);
+    }
+    exit(); 
 }
 
-// --- 1. HANDLE REPORT SUBMISSION ---
+// --- 2. 处理删除逻辑 (必须在 include header 之前) ---
+$user_id = $_SESSION['user_id'] ?? null;
+$user_role = $_SESSION['user_role'] ?? 'guest';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_post'])) {
+    if (in_array($user_role, ['admin', 'moderator'])) {
+        $post_id_to_delete = filter_input(INPUT_POST, 'post_id', FILTER_VALIDATE_INT);
+        if ($post_id_to_delete && isset($conn)) {
+            $conn->begin_transaction();
+            try {
+                // 按照外键约束顺序删除关联数据
+                $conn->query("DELETE FROM Comment WHERE Post_id = $post_id_to_delete");
+                $conn->query("DELETE FROM post_likes WHERE Post_id = $post_id_to_delete");
+                $conn->query("DELETE FROM Post_report WHERE Post_id = $post_id_to_delete");
+                $conn->query("DELETE FROM Post WHERE Post_id = $post_id_to_delete");
+                $conn->commit();
+                
+                // 执行跳转
+                header("Location: forum.php");
+                exit();
+            } catch (Exception $e) {
+                $conn->rollback();
+            }
+        }
+    }
+}
+
+// --- 3. 处理举报逻辑 (必须在 include header 之前) ---
+$success_msg = null;
+$error_msg = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_report'])) {
-    $report_type = $_POST['report_type']; // 'post'
+    $report_type = $_POST['report_type']; 
     $content_id = (int)$_POST['content_id'];
     $reason = $_POST['reason'];
     
     if ($content_id && $reason && isset($conn)) {
         try {
-            // Check if already reported
             $stmt_check = $conn->prepare("SELECT Post_report_id FROM Post_report WHERE Post_id = ? AND Reported_by = ?");
             $stmt_check->bind_param("ii", $content_id, $user_id);
             $stmt_check->execute();
@@ -41,41 +98,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_report'])) {
     }
 }
 
-// --- 2. HANDLE POST DELETION (For Admin/Mod) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_post'])) {
-    if (in_array($user_role, ['admin', 'moderator'])) {
-        $post_id_to_delete = filter_input(INPUT_POST, 'post_id', FILTER_VALIDATE_INT);
-        if ($post_id_to_delete && isset($conn)) {
-            $conn->begin_transaction();
-            try {
-                // Delete everything related to the post
-                $conn->query("DELETE FROM Comment WHERE Post_id = $post_id_to_delete");
-                $conn->query("DELETE FROM Post_Likes WHERE Post_id = $post_id_to_delete");
-                $conn->query("DELETE FROM Post_report WHERE Post_id = $post_id_to_delete");
-                $conn->query("DELETE FROM Post WHERE Post_id = $post_id_to_delete");
-                $conn->commit();
-            } catch (Exception $e) {
-                $conn->rollback();
-            }
-            header("Location: forum.php");
-            exit();
-        }
-    }
+// --- 4. 包含页面头部 (此时可以安全输出 HTML) ---
+include("../includes/header.php");
+
+// 权限验证
+if (!in_array($user_role, ['student', 'moderator', 'admin'])) {
+    header("Location: login.php");
+    exit();
 }
 
-// --- 3. FETCH POSTS ---
+// --- 5. 获取帖子列表 ---
 $posts = [];
 if (isset($conn) && !$conn->connect_error) {
+    // 修正 SQL: 使用 p.User_id 关联，并移除不存在的 p.Is_active
     $sql = "
         SELECT p.Post_id, p.Title, p.Content, p.Image, p.Created_at, u.Username,
         (SELECT COUNT(*) FROM Comment c WHERE c.Post_id = p.Post_id) AS comment_count,
-        (SELECT COUNT(*) FROM Post_Likes pl WHERE pl.Post_id = p.Post_id) AS like_count
+        (SELECT COUNT(*) FROM post_likes pl WHERE pl.Post_id = p.Post_id) AS like_count,
+        (SELECT COUNT(*) FROM post_likes WHERE Post_id = p.Post_id AND User_id = ?) AS user_liked
         FROM Post p
-        JOIN Student s ON p.Student_id = s.Student_id
-        JOIN User u ON s.User_id = u.User_id
+        JOIN User u ON p.User_id = u.User_id
         ORDER BY p.Created_at DESC
     ";
-    $result = $conn->query($sql);
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) $posts[] = $row;
 }
 ?>
@@ -84,19 +132,18 @@ if (isset($conn) && !$conn->connect_error) {
     <div class="container">
         <header class="forum-header">
             <h1 class="page-title">EcoQuest Community Forum 💬</h1>
-            <p class="page-subtitle">Share your progress, ask questions, and motivate other students!</p>
-            <?php if ($user_role === 'student'): ?>
-                <a href="create_post.php" class="btn-primary create-post-btn"><i class="fas fa-plus-circle"></i> Create New Post</a>
-            <?php endif; ?>
+            <p class="subtitle">Share your progress, ask questions, and motivate others!</p>
+            <a href="create_post.php" class="btn-primary create-post-btn">
+                <i class="fas fa-plus-circle"></i> Create New Post
+            </a>
         </header>
         
-        <?php if (isset($success_msg)): ?><div class="message success-message"><?php echo $success_msg; ?></div><?php endif; ?>
-        <?php if (isset($error_msg)): ?><div class="message error-message"><?php echo $error_msg; ?></div><?php endif; ?>
+        <?php if ($success_msg): ?><div class="message success-message"><?php echo $success_msg; ?></div><?php endif; ?>
+        <?php if ($error_msg): ?><div class="message error-message"><?php echo $error_msg; ?></div><?php endif; ?>
 
         <div class="post-list">
             <?php foreach ($posts as $post): ?>
                 <div class="post-card">
-                    
                     <?php if ($user_role === 'student'): ?>
                         <button class="report-btn-corner" onclick="openReportModal('post', <?php echo $post['Post_id']; ?>)" title="Report Post">
                             <i class="fas fa-flag"></i>
@@ -108,19 +155,25 @@ if (isset($conn) && !$conn->connect_error) {
                         <span class="post-date"><?php echo date('d M Y, h:i A', strtotime($post['Created_at'])); ?></span>
                     </div>
                     <div class="post-body">
-                        <h2 class="post-title"><a href="post_detail.php?id=<?php echo $post['Post_id']; ?>"><?php echo htmlspecialchars($post['Title']); ?></a></h2>
-                        
-                        <p class="post-content-preview"><?php echo htmlspecialchars(substr($post['Content'], 0, 150)); ?>...</p>
-                        
                         <?php if (!empty($post['Image'])): ?>
-                            <div class="post-image-preview" style="margin-top: 15px;">
-                                <img src="../<?php echo htmlspecialchars($post['Image']); ?>" alt="Post Image" style="max-width: 100%; max-height: 300px; border-radius: 8px; object-fit: cover;">
+                            <div class="post-image-preview" style="margin-bottom: 15px;">
+                                <img src="../<?php echo htmlspecialchars($post['Image']); ?>" alt="Post Image" style="max-width: 100%; max-height: 400px; border-radius: 8px; object-fit: cover; display: block;">
                             </div>
                         <?php endif; ?>
+                        <h2 class="post-title" style="cursor: default;"><?php echo htmlspecialchars($post['Title']); ?></h2>
+                        <p class="post-content-preview"><?php echo htmlspecialchars(substr($post['Content'], 0, 150)); ?>...</p>
                     </div>
+                    
                     <div class="post-footer">
-                        <span class="post-stat"><i class="fas fa-heart"></i> <?php echo $post['like_count']; ?> Likes</span>
-                        <span class="post-stat"><i class="fas fa-comment"></i> <?php echo $post['comment_count']; ?> Comments</span>
+                        <span class="post-stat like-btn <?php echo $post['user_liked'] ? 'liked' : ''; ?>" 
+                              onclick="toggleLike(this, <?php echo $post['Post_id']; ?>)" style="cursor: pointer;">
+                            <i class="<?php echo $post['user_liked'] ? 'fas' : 'far'; ?> fa-heart"></i> 
+                            <span class="count"><?php echo $post['like_count']; ?></span>
+                        </span>
+
+                        <span class="post-stat" style="cursor: default;">
+                            <i class="fas fa-comment"></i> <?php echo $post['comment_count']; ?>
+                        </span>
                         
                         <div style="margin-left: auto;">
                             <?php if (in_array($user_role, ['admin', 'moderator'])): ?>
@@ -143,93 +196,80 @@ if (isset($conn) && !$conn->connect_error) {
             <span class="close-modal" onclick="closeReportModal()">&times;</span>
             <h2 class="modal-title">Report Content 🚩</h2>
             <p>Please select a reason for reporting this content:</p>
-            
             <form method="POST" action="forum.php">
                 <input type="hidden" name="submit_report" value="1">
                 <input type="hidden" id="report_type" name="report_type" value="">
                 <input type="hidden" id="report_content_id" name="content_id" value="">
-                
                 <div class="radio-group">
                     <label class="radio-option"><input type="radio" name="reason" value="Sexual Content" required> <span>Sexual Content</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Violent or Repulsive Content"> <span>Violent or Repulsive Content</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Hateful or Abusive Content"> <span>Hateful or Abusive Content</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Harmful or Dangerous Acts"> <span>Harmful or Dangerous Acts</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Spam or Misleading"> <span>Spam or Misleading</span></label>
+                    <label class="radio-option"><input type="radio" name="reason" value="Violent Content"> <span>Violent Content</span></label>
+                    <label class="radio-option"><input type="radio" name="reason" value="Abusive Content"> <span>Abusive Content</span></label>
+                    <label class="radio-option"><input type="radio" name="reason" value="Spam"> <span>Spam</span></label>
                 </div>
-
                 <button type="submit" class="btn-submit-report">Submit Report</button>
             </form>
         </div>
     </div>
-
 </main>
 
 <style>
-    /* Position post-card relative so absolute child works */
     .post-card { position: relative; }
-
-    /* Top Right Flag Button */
-    .report-btn-corner {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        background: none;
-        border: none;
-        color: #ccc;
-        cursor: pointer;
-        font-size: 1.1rem;
-        transition: color 0.3s;
-        z-index: 10;
-    }
+    .report-btn-corner { position: absolute; top: 15px; right: 15px; background: none; border: none; color: #ccc; cursor: pointer; font-size: 1.1rem; transition: color 0.3s; z-index: 10; }
     .report-btn-corner:hover { color: #E53E3E; }
-
-    /* Fix Date Collision */
     .post-date { margin-right: 35px; }
-
-    /* Modal Styles */
-    .modal {
-        display: none; 
-        position: fixed; 
-        z-index: 1000; 
-        left: 0; top: 0; width: 100%; height: 100%; 
-        background-color: rgba(0,0,0,0.5); 
-        animation: fadeIn 0.3s;
-    }
-    .modal-content {
-        background-color: #fefefe;
-        margin: 10% auto; 
-        padding: 25px;
-        border-radius: 12px;
-        width: 90%; 
-        max-width: 450px;
-        position: relative;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.2);
-    }
-    .close-modal {
-        position: absolute; top: 10px; right: 20px;
-        color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;
-    }
-    .close-modal:hover { color: #000; }
+    .post-stat.like-btn { color: #555; transition: all 0.2s ease; }
+    .post-stat.like-btn i { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-size: 1.2rem; margin-right: 5px; }
+    .post-stat.like-btn.liked { color: #ff4d4d !important; }
+    .post-stat.like-btn.liked i { color: #ff4d4d !important; }
+    .post-stat.like-btn:active i { transform: scale(1.4); }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); animation: fadeIn 0.3s; }
+    .modal-content { background-color: #fefefe; margin: 10% auto; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+    .close-modal { position: absolute; top: 10px; right: 20px; color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer; }
     .modal-title { margin-top: 0; color: #1D4C43; }
-    
     .radio-group { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
-    .radio-option {
-        display: flex; align-items: center; gap: 10px;
-        padding: 10px; border: 1px solid #eee; border-radius: 8px; cursor: pointer; transition: 0.2s;
-    }
+    .radio-option { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #eee; border-radius: 8px; cursor: pointer; transition: 0.2s; }
     .radio-option:hover { background-color: #f9f9f9; border-color: #71B48D; }
-    .radio-option input { accent-color: #1D4C43; transform: scale(1.2); }
-    
-    .btn-submit-report {
-        width: 100%; padding: 12px;
-        background-color: #E53E3E; color: white;
-        border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
-    }
-    .btn-submit-report:hover { background-color: #c53030; }
+    .btn-submit-report { width: 100%; padding: 12px; background-color: #E53E3E; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
     @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
 </style>
 
 <script>
+    function toggleLike(element, postId) {
+        const icon = element.querySelector('i');
+        const countSpan = element.querySelector('.count');
+        let currentCount = parseInt(countSpan.textContent);
+        const isLiked = element.classList.contains('liked');
+
+        if (isLiked) {
+            element.classList.remove('liked');
+            icon.classList.replace('fas', 'far');
+            countSpan.textContent = currentCount - 1;
+        } else {
+            element.classList.add('liked');
+            icon.classList.replace('far', 'fas');
+            countSpan.textContent = currentCount + 1;
+        }
+
+        const formData = new FormData();
+        formData.append('toggle_like', '1');
+        formData.append('post_id', postId);
+
+        fetch('forum.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.new_count !== undefined) {
+                countSpan.textContent = data.new_count;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            window.location.reload(); 
+        });
+    }
+
     function openReportModal(type, id) {
         document.getElementById('reportModal').style.display = "block";
         document.getElementById('report_type').value = type;
@@ -237,10 +277,6 @@ if (isset($conn) && !$conn->connect_error) {
     }
     function closeReportModal() {
         document.getElementById('reportModal').style.display = "none";
-    }
-    window.onclick = function(event) {
-        var modal = document.getElementById('reportModal');
-        if (event.target == modal) { modal.style.display = "none"; }
     }
 </script>
 

@@ -2,90 +2,114 @@
 // pages/post_detail.php
 session_start();
 include("../config/db.php");
-include("../includes/header.php");
 
+// --- 1. INITIAL DATA & AJAX LIKE LOGIC (MUST BE AT TOP) ---
 $user_id = $_SESSION['user_id'] ?? null;
 $user_role = $_SESSION['user_role'] ?? 'guest';
-$student_id = $_SESSION['student_id'] ?? null;
 $post_id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+
+// AJAX LIKE HANDLER
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['toggle_like'])) {
+    if (ob_get_length()) ob_clean();
+    header('Content-Type: application/json');
+    $p_id = (int)$_POST['post_id'];
+
+    if ($user_id && $p_id && isset($conn)) {
+        $stmt = $conn->prepare("SELECT Like_id FROM post_likes WHERE User_id = ? AND Post_id = ?");
+        $stmt->bind_param("ii", $user_id, $p_id);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        
+        if ($res->num_rows > 0) {
+            $stmt = $conn->prepare("DELETE FROM post_likes WHERE User_id = ? AND Post_id = ?");
+            $stmt->bind_param("ii", $user_id, $p_id);
+            $stmt->execute();
+            $status = 'unliked';
+        } else {
+            $stmt = $conn->prepare("INSERT INTO post_likes (User_id, Post_id) VALUES (?, ?)");
+            $stmt->bind_param("ii", $user_id, $p_id);
+            $stmt->execute();
+            $status = 'liked';
+        }
+        
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM post_likes WHERE Post_id = ?");
+        $stmt->bind_param("i", $p_id);
+        $stmt->execute();
+        echo json_encode(['status' => $status, 'new_count' => $stmt->get_result()->fetch_assoc()['count']]);
+    }
+    exit(); 
+}
 
 if (!$post_id) { header("Location: forum.php"); exit(); }
 
-// --- 1. HANDLE REPORT SUBMISSION (Unified for Post & Comment) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_report'])) {
-    $report_type = $_POST['report_type']; // 'post' or 'comment'
-    $content_id = (int)$_POST['content_id'];
-    $reason = $_POST['reason'];
-    
-    if ($content_id && $reason && $user_id) {
-        try {
-            if ($report_type === 'post') {
-                $check = $conn->prepare("SELECT Post_report_id FROM Post_report WHERE Post_id = ? AND Reported_by = ?");
-                $insert = $conn->prepare("INSERT INTO Post_report (Post_id, Reason, Report_time, Status, Reported_by) VALUES (?, ?, NOW(), 'Pending', ?)");
-            } else {
-                $check = $conn->prepare("SELECT Comment_report_id FROM Comment_report WHERE Comment_id = ? AND Reported_by = ?");
-                $insert = $conn->prepare("INSERT INTO Comment_report (Comment_id, Reason, Report_time, Status, Reported_by) VALUES (?, ?, NOW(), 'Pending', ?)");
-            }
+// --- 2. HANDLE OTHER POST ACTIONS (BEFORE HEADER) ---
+$success_msg = null;
+$error_msg = null;
 
-            // Check Duplicate
-            $check->bind_param("ii", $content_id, $user_id);
-            $check->execute();
-            if ($check->get_result()->num_rows == 0) {
-                // Insert
-                $insert->bind_param("isi", $content_id, $reason, $user_id);
-                if ($insert->execute()) {
-                    $success_msg = ucfirst($report_type) . " reported successfully.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // A. REPORT SUBMISSION
+    if (isset($_POST['submit_report'])) {
+        $report_type = $_POST['report_type']; 
+        $content_id = (int)$_POST['content_id'];
+        $reason = $_POST['reason'];
+        if ($content_id && $reason && $user_id) {
+            try {
+                if ($report_type === 'post') {
+                    $check = $conn->prepare("SELECT Post_report_id FROM Post_report WHERE Post_id = ? AND Reported_by = ?");
+                    $insert = $conn->prepare("INSERT INTO Post_report (Post_id, Reason, Report_time, Status, Reported_by) VALUES (?, ?, NOW(), 'Pending', ?)");
                 } else {
-                    $error_msg = "Failed to report content.";
+                    $check = $conn->prepare("SELECT Comment_report_id FROM Comment_report WHERE Comment_id = ? AND Reported_by = ?");
+                    $insert = $conn->prepare("INSERT INTO Comment_report (Comment_id, Reason, Report_time, Status, Reported_by) VALUES (?, ?, NOW(), 'Pending', ?)");
                 }
-                $insert->close();
-            } else {
-                $error_msg = "You have already reported this.";
-            }
-            $check->close();
-
-        } catch (Exception $e) {
-            $error_msg = "Error processing report.";
+                $check->bind_param("ii", $content_id, $user_id);
+                $check->execute();
+                if ($check->get_result()->num_rows == 0) {
+                    $insert->bind_param("isi", $content_id, $reason, $user_id);
+                    if ($insert->execute()) $success_msg = ucfirst($report_type) . " reported successfully.";
+                    $insert->close();
+                } else { $error_msg = "You have already reported this."; }
+                $check->close();
+            } catch (Exception $e) { $error_msg = "Error processing report."; }
         }
     }
-}
 
-// --- 2. HANDLE COMMENTS & LIKES ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['add_comment']) && $user_role === 'student') {
+    // B. ADD COMMENT - UPDATED: Removed student-only restriction
+    if (isset($_POST['add_comment']) && $user_id) {
         $comment = trim($_POST['comment_content']);
         if($comment) {
-            $conn->query("INSERT INTO Comment (Post_id, Student_id, Comment, Created_at) VALUES ($post_id, $student_id, '$comment', NOW())");
-            header("Location: post_detail.php?id=$post_id"); exit;
+            $stmt = $conn->prepare("INSERT INTO Comment (Post_id, User_id, Comment, Created_at) VALUES (?, ?, ?, NOW())");
+            $stmt->bind_param("iis", $post_id, $user_id, $comment);
+            $stmt->execute();
+            header("Location: post_detail.php?id=$post_id"); exit();
         }
     }
-    if (isset($_POST['like_post']) && $user_role === 'student') {
-        $conn->query("INSERT IGNORE INTO Post_Likes (Post_id, Student_id) VALUES ($post_id, $student_id)");
-        header("Location: post_detail.php?id=$post_id"); exit;
-    }
-    // Admin Delete Comment
+
+    // C. DELETE COMMENT
     if (isset($_POST['delete_comment']) && in_array($user_role, ['admin', 'moderator'])) {
         $cid = (int)$_POST['comment_id'];
         $conn->query("DELETE FROM Comment_report WHERE Comment_id = $cid"); 
         $conn->query("DELETE FROM Comment WHERE Comment_id = $cid");
-        header("Location: post_detail.php?id=$post_id"); exit;
+        header("Location: post_detail.php?id=$post_id"); exit();
     }
 }
+
+include("../includes/header.php");
 
 // --- 3. FETCH DATA ---
 $post = null; $comments = [];
 if (isset($conn)) {
-    // Fetch Post (include Image)
-    $stmt = $conn->prepare("SELECT p.*, u.Username FROM Post p JOIN Student s ON p.Student_id = s.Student_id JOIN User u ON s.User_id = u.User_id WHERE p.Post_id = ?");
-    $stmt->bind_param("i", $post_id); $stmt->execute();
+    $stmt = $conn->prepare("
+        SELECT p.*, u.Username,
+        (SELECT COUNT(*) FROM post_likes WHERE Post_id = p.Post_id AND User_id = ?) AS user_liked
+        FROM Post p JOIN User u ON p.User_id = u.User_id WHERE p.Post_id = ?");
+    $stmt->bind_param("ii", $user_id, $post_id); $stmt->execute();
     $post = $stmt->get_result()->fetch_assoc();
     $stmt->close();
 
-    // Fetch Comments
     if ($post) {
-        $res = $conn->query("SELECT c.*, u.Username FROM Comment c JOIN Student s ON c.Student_id = s.Student_id JOIN User u ON s.User_id = u.User_id WHERE c.Post_id = $post_id ORDER BY c.Created_at ASC");
+        $res = $conn->query("SELECT c.*, u.Username FROM Comment c JOIN User u ON c.User_id = u.User_id WHERE c.Post_id = $post_id ORDER BY c.Created_at ASC");
         while ($row = $res->fetch_assoc()) $comments[] = $row;
-        $post['like_count'] = $conn->query("SELECT COUNT(*) FROM Post_Likes WHERE Post_id = $post_id")->fetch_row()[0];
+        $post['like_count'] = $conn->query("SELECT COUNT(*) FROM post_likes WHERE Post_id = $post_id")->fetch_row()[0];
     }
 }
 ?>
@@ -94,12 +118,11 @@ if (isset($conn)) {
     <div class="container" style="max-width: 900px;">
         <a href="forum.php" class="back-link">&laquo; Back to Forum</a>
         
-        <?php if (isset($success_msg)): ?><div class="message success-message"><?php echo $success_msg; ?></div><?php endif; ?>
-        <?php if (isset($error_msg)): ?><div class="message error-message"><?php echo $error_msg; ?></div><?php endif; ?>
+        <?php if ($success_msg): ?><div class="message success-message"><?php echo $success_msg; ?></div><?php endif; ?>
+        <?php if ($error_msg): ?><div class="message error-message"><?php echo $error_msg; ?></div><?php endif; ?>
 
         <?php if ($post): ?>
             <div class="post-full-content" style="position: relative;">
-                
                 <?php if ($user_role === 'student'): ?>
                     <button class="report-btn-corner" onclick="openReportModal('post', <?php echo $post['Post_id']; ?>)" title="Report Post">
                         <i class="fas fa-flag"></i>
@@ -116,11 +139,13 @@ if (isset($conn)) {
                 <?php endif; ?>
 
                 <div class="post-full-body"><?php echo nl2br(htmlspecialchars($post['Content'])); ?></div>
+                
                 <div class="post-actions">
-                    <?php if ($user_role === 'student'): ?>
-                        <form method="POST" style="display: inline;"><button type="submit" name="like_post" class="like-btn"><i class="fas fa-heart"></i> Like</button></form>
-                    <?php endif; ?>
-                    <span class="like-count"><?php echo $post['like_count']; ?> Likes</span>
+                    <span class="post-stat like-btn <?php echo $post['user_liked'] ? 'liked' : ''; ?>" 
+                          onclick="toggleLike(this, <?php echo $post['Post_id']; ?>)" style="cursor: pointer;">
+                        <i class="<?php echo $post['user_liked'] ? 'fas' : 'far'; ?> fa-heart"></i> 
+                        <span class="count"><?php echo $post['like_count']; ?></span>
+                    </span>
                 </div>
             </div>
 
@@ -129,13 +154,11 @@ if (isset($conn)) {
                 <div class="comment-list">
                     <?php foreach ($comments as $comment): ?>
                         <div class="comment-item" style="position: relative;">
-                            
                             <?php if ($user_role === 'student'): ?>
                                 <button class="report-btn-corner-sm" onclick="openReportModal('comment', <?php echo $comment['Comment_id']; ?>)" title="Report Comment">
                                     <i class="fas fa-flag"></i>
                                 </button>
                             <?php endif; ?>
-
                             <div class="comment-header">
                                 <span class="comment-author"><?php echo htmlspecialchars($comment['Username']); ?></span>
                                 <?php if (in_array($user_role, ['admin', 'moderator'])): ?>
@@ -150,7 +173,6 @@ if (isset($conn)) {
                     <?php endforeach; ?>
                 </div>
                 
-                <?php if ($user_role === 'student'): ?>
                 <div class="add-comment-form">
                     <h3>Leave a Reply</h3>
                     <form method="POST">
@@ -158,7 +180,6 @@ if (isset($conn)) {
                         <button type="submit" name="add_comment" class="btn-primary">Post Comment</button>
                     </form>
                 </div>
-                <?php endif; ?>
             </div>
         <?php else: ?>
             <div class="message error-message">Post not found.</div>
@@ -169,18 +190,15 @@ if (isset($conn)) {
         <div class="modal-content">
             <span class="close-modal" onclick="closeReportModal()">&times;</span>
             <h2 class="modal-title">Report Content 🚩</h2>
-            <p>Please select a reason:</p>
             <form method="POST">
                 <input type="hidden" name="submit_report" value="1">
                 <input type="hidden" id="report_type" name="report_type" value=""> 
                 <input type="hidden" id="report_content_id" name="content_id" value="">
-                
                 <div class="radio-group">
                     <label class="radio-option"><input type="radio" name="reason" value="Sexual Content" required> <span>Sexual Content</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Violent or Repulsive Content"> <span>Violent or Repulsive Content</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Hateful or Abusive Content"> <span>Hateful or Abusive Content</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Harmful or Dangerous Acts"> <span>Harmful or Dangerous Acts</span></label>
-                    <label class="radio-option"><input type="radio" name="reason" value="Spam or Misleading"> <span>Spam or Misleading</span></label>
+                    <label class="radio-option"><input type="radio" name="reason" value="Violent Content"> <span>Violent Content</span></label>
+                    <label class="radio-option"><input type="radio" name="reason" value="Hateful Content"> <span>Hateful Content</span></label>
+                    <label class="radio-option"><input type="radio" name="reason" value="Spam"> <span>Spam</span></label>
                 </div>
                 <button type="submit" class="btn-submit-report">Submit Report</button>
             </form>
@@ -189,21 +207,17 @@ if (isset($conn)) {
 </main>
 
 <style>
-    /* Main Post Flag (Larger) */
     .report-btn-corner { position: absolute; top: 20px; right: 20px; background: none; border: none; color: #ccc; cursor: pointer; font-size: 1.2rem; transition: 0.2s; z-index: 10; }
     .report-btn-corner:hover { color: #E53E3E; }
-    
-    /* Comment Flag (Smaller) */
     .report-btn-corner-sm { position: absolute; top: 10px; right: 10px; background: none; border: none; color: #ddd; cursor: pointer; font-size: 0.9rem; transition: 0.2s; z-index: 10; }
     .report-btn-corner-sm:hover { color: #E53E3E; }
-
+    .post-stat.like-btn { color: #555; transition: all 0.2s ease; display: flex; align-items: center; gap: 5px; }
+    .post-stat.like-btn i { transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); font-size: 1.3rem; }
+    .post-stat.like-btn.liked { color: #ff4d4d !important; }
+    .post-stat.like-btn:active i { transform: scale(1.4); }
     .btn-delete-comment { background: none; border: none; color: #cc0000; font-size: 1.2rem; font-weight: bold; cursor: pointer; float:right; margin-right: 30px; }
-
-    /* Modal Styling */
     .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); animation: fadeIn 0.3s; }
     .modal-content { background-color: #fefefe; margin: 10% auto; padding: 25px; border-radius: 12px; width: 90%; max-width: 450px; position: relative; }
-    .close-modal { position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; color: #aaa; }
-    .close-modal:hover { color: #000; }
     .radio-group { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
     .radio-option { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid #eee; border-radius: 8px; cursor: pointer; transition: 0.2s; }
     .radio-option:hover { background-color: #f9f9f9; border-color: #71B48D; }
@@ -212,13 +226,34 @@ if (isset($conn)) {
 </style>
 
 <script>
+    function toggleLike(element, postId) {
+        const icon = element.querySelector('i');
+        const countSpan = element.querySelector('.count');
+        let currentCount = parseInt(countSpan.textContent);
+        const isLiked = element.classList.contains('liked');
+        if (isLiked) {
+            element.classList.remove('liked');
+            icon.classList.replace('fas', 'far');
+            countSpan.textContent = currentCount - 1;
+        } else {
+            element.classList.add('liked');
+            icon.classList.replace('far', 'fas');
+            countSpan.textContent = currentCount + 1;
+        }
+        const formData = new FormData();
+        formData.append('toggle_like', '1');
+        formData.append('post_id', postId);
+        fetch('post_detail.php?id=' + postId, { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => { if (data.new_count !== undefined) countSpan.textContent = data.new_count; })
+        .catch(error => { window.location.reload(); });
+    }
     function openReportModal(type, id) {
         document.getElementById('reportModal').style.display = "block";
         document.getElementById('report_type').value = type;
         document.getElementById('report_content_id').value = id;
     }
     function closeReportModal() { document.getElementById('reportModal').style.display = "none"; }
-    window.onclick = function(event) { if (event.target == document.getElementById('reportModal')) closeReportModal(); }
 </script>
 
 <?php include("../includes/footer.php"); ?>

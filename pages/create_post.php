@@ -2,15 +2,14 @@
 // pages/create_post.php
 session_start();
 include("../config/db.php");
-include("../includes/header.php");
 
-// Only logged-in students can create posts
-if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'student' || !isset($_SESSION['student_id'])) {
+// --- 1. AUTHORIZATION CHECK (MUST BE BEFORE HEADER.PHP) ---
+if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit();
 }
 
-$student_id = $_SESSION['student_id'];
+$user_id = $_SESSION['user_id'];
 $error_message = '';
 $success_message = '';
 
@@ -18,36 +17,30 @@ $success_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $content = trim($_POST['content'] ?? '');
-    $image_path = null; // Default to null
+    $image_path = null;
 
-    // Simple validation
     if (empty($title) || empty($content)) {
         $error_message = 'Aiyo! Both title and content cannot be empty.';
     } else {
-        
-        // --- 1. HANDLE IMAGE UPLOAD ---
+        // --- HANDLE IMAGE UPLOAD ---
         if (isset($_FILES['post_image']) && $_FILES['post_image']['error'] === UPLOAD_ERR_OK) {
             $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/jpg'];
-            $max_size = 5 * 1024 * 1024; // 5MB
+            $max_size = 5 * 1024 * 1024;
 
             if (!in_array($_FILES['post_image']['type'], $allowed_types)) {
                 $error_message = "Only JPG, PNG, and GIF images are allowed.";
             } elseif ($_FILES['post_image']['size'] > $max_size) {
                 $error_message = "File size is too large (Max 5MB).";
             } else {
-                // Ensure directory exists
                 $upload_dir = "../uploads/forum/";
                 if (!is_dir($upload_dir)) {
                     mkdir($upload_dir, 0777, true);
                 }
-
-                // Generate unique name
                 $file_ext = pathinfo($_FILES['post_image']['name'], PATHINFO_EXTENSION);
                 $file_name = uniqid('post_', true) . '.' . $file_ext;
                 $target_path = $upload_dir . $file_name;
 
                 if (move_uploaded_file($_FILES['post_image']['tmp_name'], $target_path)) {
-                    // Save relative path for DB
                     $image_path = "uploads/forum/" . $file_name;
                 } else {
                     $error_message = "Failed to upload image.";
@@ -55,18 +48,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // --- 2. INSERT INTO DATABASE ---
+        // --- INSERT INTO DATABASE ---
         if (empty($error_message)) {
             if (isset($conn) && !$conn->connect_error) {
                 try {
-                    // Updated Query to include 'Image'
-                    $sql = "INSERT INTO Post (Student_id, Title, Content, Image, Created_at) VALUES (?, ?, ?, ?, NOW())";
+                    $sql = "INSERT INTO Post (User_id, Title, Content, Image, Created_at) VALUES (?, ?, ?, ?, NOW())";
                     $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("isss", $student_id, $title, $content, $image_path);
+                    $stmt->bind_param("isss", $user_id, $title, $content, $image_path);
 
                     if ($stmt->execute()) {
                         $success_message = 'Your post has been published successfully!';
-                        header("Refresh: 2; URL=forum.php");
                     } else {
                         $error_message = "Failed to create post. Please try again.";
                     }
@@ -80,13 +71,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+include("../includes/header.php");
 ?>
 
 <main class="forum-page">
-    <div class="container" style="max-width: 800px;">
+    <div class="container" style="max-width: 1000px;">
         <header class="forum-header">
             <h1 class="page-title">Create a New Post ✍️</h1>
-            <p class="page-subtitle">Share your thoughts, tips, or success stories with the community.</p>
         </header>
 
         <div class="create-post-card">
@@ -99,32 +91,135 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?php echo htmlspecialchars($success_message); ?>
                     <p style="font-size: 0.9rem; margin-top: 5px;">Redirecting you to the forum now...</p>
                 </div>
+                <script>setTimeout(function(){ window.location.href = "forum.php"; }, 2000);</script>
             <?php endif; ?>
 
-            <form action="create_post.php" method="POST" enctype="multipart/form-data" class="post-form">
-                <div class="form-group">
-                    <label for="title">Post Title</label>
-                    <input type="text" id="title" name="title" required placeholder="e.g., My experience completing the 'Plastic Fighter' quest!">
-                </div>
+            <form action="create_post.php" method="POST" enctype="multipart/form-data" class="post-form-split">
                 
-                <div class="form-group">
-                    <label for="content">Your Content</label>
-                    <textarea id="content" name="content" rows="10" required placeholder="Share more details here..."></textarea>
+                <div class="form-left-upload">
+                    <label for="post_image" class="image-upload-label" id="imagePreviewContainer">
+                        <div class="upload-placeholder">
+                            <i class="fas fa-image" style="font-size: 3rem; color: #ccc;"></i>
+                            <p>Click to select a photo</p>
+                        </div>
+                        <img id="preview" src="#" alt="Preview" style="display: none;">
+                        <input type="file" id="post_image" name="post_image" accept="image/*" hidden onchange="previewImage(this)">
+                    </label>
                 </div>
 
-                <div class="form-group">
-                    <label for="post_image">Attach an Image (Optional)</label>
-                    <input type="file" id="post_image" name="post_image" accept="image/*" style="padding: 10px; border: 1px solid #ddd; border-radius: 8px; width: 100%;">
-                    <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">Max size: 5MB. Formats: JPG, PNG, GIF.</p>
-                </div>
+                <div class="form-right-content">
+                    <div class="form-group">
+                        <label for="title">Post Title</label>
+                        <input type="text" id="title" name="title" required placeholder="Add a catchy title...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="content">Description</label>
+                        <textarea id="content" name="content" rows="8" required placeholder="Write a caption..."></textarea>
+                    </div>
 
-                <div class="form-actions">
-                    <a href="forum.php" class="btn-secondary">Cancel</a>
-                    <button type="submit" class="btn-primary">Publish Post</button>
+                    <div class="form-actions-bottom">
+                        <a href="forum.php" class="btn-secondary">Cancel</a>
+                        <button type="submit" class="btn-primary">Share</button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 </main>
+
+<style>
+    /* Split Layout based on your reference image */
+    .post-form-split {
+        display: flex;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        min-height: 500px;
+    }
+
+    .form-left-upload {
+        flex: 1.2;
+        background: #fafafa;
+        border-right: 1px solid #efefef;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .form-right-content {
+        flex: 1;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Clickable area styling */
+    .image-upload-label {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .upload-placeholder {
+        text-align: center;
+        color: #8e8e8e;
+    }
+
+    #preview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .form-group { margin-bottom: 20px; }
+    .form-group label { font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; display: block; }
+    .form-group input, .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #dbdbdb;
+        border-radius: 8px;
+        font-family: inherit;
+    }
+
+    .form-actions-bottom {
+        margin-top: auto;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        padding-top: 15px;
+        border-top: 1px solid #efefef;
+    }
+
+    /* Adjust for mobile */
+    @media (max-width: 768px) {
+        .post-form-split { flex-direction: column; }
+        .form-left-upload { min-height: 300px; }
+    }
+</style>
+
+<script>
+// Image Preview Script
+function previewImage(input) {
+    const preview = document.getElementById('preview');
+    const placeholder = document.querySelector('.upload-placeholder');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 
 <?php include("../includes/footer.php"); ?>
