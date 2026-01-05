@@ -14,6 +14,8 @@ if (isset($_SESSION['user_id'])) {
 $login_error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    file_put_contents('../login_debug.txt', "POST REQUEST RECEIVED\n", FILE_APPEND);
+    
     $identifier = $_POST['identifier'] ?? '';
     $password = $_POST['password'] ?? '';
 
@@ -22,13 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // Updated function to return status codes
         function attempt_login($conn, $identifier, $password, $role) {
-            $table_name = $role . 's'; // students, moderators, admins (Note: your DB uses singular 'student'/'admin' usually, but let's stick to your logic if your tables are named that way. Assuming your login worked before.)
-            // Based on your SQL dump, tables are singular: 'student', 'admin', 'moderator'.
-            // Your previous code had: $table_name = $role . 's'; -> This might have been a bug in your previous code if tables are singular.
-            // I will fix it to use specific table checks based on your SQL dump.
-            
-            // However, your SQL dump shows 'user' table holds password.
-            // Let's use the 'user' table for auth, then check role.
+            $debug_file = '../login_debug.txt';
+            file_put_contents($debug_file, "===== ATTEMPT_LOGIN: role=$role, identifier=$identifier =====\n", FILE_APPEND);
             
             $sql = "SELECT User_id, Username, Role, Password_hash FROM user WHERE Username = ? OR Email = ?";
             $stmt = $conn->prepare($sql);
@@ -37,25 +34,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = $stmt->get_result();
             $user = $result->fetch_assoc();
             $stmt->close();
+            
+            $user_found = $user ? 'YES (User_id=' . $user['User_id'] . ', Role=' . $user['Role'] . ')' : 'NO';
+            file_put_contents($debug_file, "User found: $user_found\n", FILE_APPEND);
 
             if ($user && $user['Role'] === $role) {
+                file_put_contents($debug_file, "Role matches! Checking password...\n", FILE_APPEND);
                 // Verify Password (Use password_verify if hashed, or == if plain text)
                 // Your SQL dump shows hashes ($2y$10$...), so use password_verify
                 if (password_verify($password, $user['Password_hash'])) {
+                    file_put_contents($debug_file, "Password verified!\n", FILE_APPEND);
                     
                     // --- 🛑 BAN CHECK FOR STUDENTS ---
                     if ($role === 'student') {
-                        $s_check = $conn->query("SELECT Student_id, Ban_time FROM student WHERE User_id = " . $user['User_id'])->fetch_assoc();
-                        if ($s_check && $s_check['Ban_time'] && new DateTime($s_check['Ban_time']) > new DateTime()) {
-                            return 'banned';
+                        $ban_stmt = $conn->prepare("SELECT Student_id, Ban_time FROM student WHERE User_id = ?");
+                        $ban_stmt->bind_param("i", $user['User_id']);
+                        $ban_stmt->execute();
+                        $s_check = $ban_stmt->get_result()->fetch_assoc();
+                        $ban_stmt->close();
+                        
+                        if ($s_check) {
+                            $_SESSION['student_id'] = $s_check['Student_id'];
+                            
+                            // Check if ban is active - simple timestamp comparison
+                            if (!empty($s_check['Ban_time']) && $s_check['Ban_time'] !== '0000-00-00 00:00:00') {
+                                $ban_timestamp = strtotime($s_check['Ban_time']);
+                                $now_timestamp = time();
+                                
+                                if ($ban_timestamp > $now_timestamp) {
+                                    // BAN IS ACTIVE
+                                    $_SESSION['ban_time'] = $s_check['Ban_time'];
+                                    return 'banned';
+                                }
+                            }
                         }
-                        // Set Student ID for session
-                        $_SESSION['student_id'] = $s_check['Student_id'];
                     }
                     
                     $_SESSION['user_id'] = $user['User_id'];
                     $_SESSION['username'] = $user['Username'];
                     $_SESSION['user_role'] = $role;
+                    file_put_contents($debug_file, "RETURNING SUCCESS\n", FILE_APPEND);
                     return 'success';
                 }
             }
@@ -79,10 +97,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Try Student
         if ($status === 'fail') {
             $status = attempt_login($conn, $identifier, $password, 'student');
+            // DEBUG
+            error_log("Student login attempt for '$identifier': status = '$status'");
+            if (isset($_SESSION['ban_time'])) {
+                error_log("Ban time in session: " . $_SESSION['ban_time']);
+            }
+            // END DEBUG
+            
             if ($status === 'success') {
                 header("Location: dashboard.php"); exit();
             } elseif ($status === 'banned') {
-                $login_error = "🚫 Access Denied: Your account has been suspended.";
+                $ban_time = isset($_SESSION['ban_time']) ? $_SESSION['ban_time'] : null;
+                $formatted_time = $ban_time ? date('h:i A m/d/Y', strtotime($ban_time)) : 'Unknown';
+                $login_error = "🚫 Your account is locked until " . $formatted_time . ". Please contact support.";
+                unset($_SESSION['ban_time']); // Clear the session variable
             } else {
                 $login_error = 'Invalid username/email or password.';
             }
