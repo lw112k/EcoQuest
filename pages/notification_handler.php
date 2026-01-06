@@ -53,7 +53,7 @@ try {
                 'title' => 'New Quest Submission 📥',
                 'message' => "<strong>{$row['Username']}</strong> submitted proof for <em>{$row['Title']}</em>.",
                 'time' => time_elapsed_string($row['Submission_date']),
-                'link' => ($user_role === 'admin' ? '../pages/admin/' : '../pages/moderator/') . "review_submission.php?id=" . $row['Student_quest_submission_id'],
+                'link' => ($user_role === 'admin' ? '/Group7_EcoQuest/pages/admin/' : '/Group7_EcoQuest/pages/moderator/') . "review_submission.php?id=" . $row['Student_quest_submission_id'],
                 'sort_time' => strtotime($row['Submission_date'])
             ];
         }
@@ -75,7 +75,7 @@ try {
                 'title' => 'Post Reported 🚩',
                 'message' => "<strong>{$row['Username']}</strong> reported a post. Reason: {$row['Reason']}",
                 'time' => time_elapsed_string($row['Report_time']),
-                'link' => '../pages/moderator/review_report.php?type=post&id=' . $row['Post_report_id'],
+                'link' => '/Group7_EcoQuest/pages/moderator/review_report.php?type=post&id=' . $row['Post_report_id'],
                 'sort_time' => strtotime($row['Report_time'])
             ];
         }
@@ -96,7 +96,7 @@ try {
                 'title' => 'Comment Reported 🚩',
                 'message' => "<strong>{$row['Username']}</strong> reported a comment. Reason: {$row['Reason']}",
                 'time' => time_elapsed_string($row['Report_time']),
-                'link' => '../pages/moderator/review_report.php?type=comment&id=' . $row['Comment_report_id'],
+                'link' => '/Group7_EcoQuest/pages/moderator/review_report.php?type=comment&id=' . $row['Comment_report_id'],
                 'sort_time' => strtotime($row['Report_time'])
             ];
         }
@@ -119,7 +119,7 @@ try {
                     'title' => 'New Student Feedback 💬',
                     'message' => "<strong>{$row['Username']}</strong>: " . substr($row['Title'], 0, 30) . "...",
                     'time' => time_elapsed_string($row['Date_time']),
-                    'link' => '../pages/admin/view_feedback.php',
+                    'link' => '/Group7_EcoQuest/pages/admin/view_feedback.php',
                     'sort_time' => strtotime($row['Date_time'])
                 ];
             }
@@ -164,7 +164,7 @@ try {
                 'title' => "Update: $status $icon",
                 'message' => $msg,
                 'time' => time_elapsed_string($row['Review_date']),
-                'link' => '../pages/validate.php'
+                'link' => '/Group7_EcoQuest/pages/validate.php'
             ];
             
             // "Fake" unread for 24 hours
