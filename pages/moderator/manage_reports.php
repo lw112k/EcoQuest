@@ -245,7 +245,7 @@ if ($conn) {
         .data-table td {
             text-align: right;
             padding: 8px 15px;
-            padding-left: 50%;
+            padding-left: 100px;
             position: relative;
             border-bottom: 1px dashed #f0f0f0;
         }
@@ -253,15 +253,16 @@ if ($conn) {
         .data-table td:last-child {
             border-bottom: none;
             text-align: center;
+            padding-top: 15px;
         }
 
         .data-table td::before {
             content: attr(data-label);
             position: absolute;
             left: 15px;
-            width: 45%;
+            width: 80px;
             text-align: left;
-            font-weight: 600;
+            font-weight: 700;
             color: #4A5568;
             font-size: 0.75rem;
         }

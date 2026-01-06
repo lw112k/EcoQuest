@@ -166,6 +166,42 @@ if (!$conn) {
 </main>
 
 <style>
+    /* Submission Filter Navigation - Desktop */
+    .submission-filter-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        background: #ffffff;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin-bottom: 30px;
+        align-items: center;
+    }
+
+    .submission-filter-nav .btn-filter {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.2s;
+        background-color: #f0f0f0;
+        color: #333;
+        border: none;
+        cursor: pointer;
+    }
+
+    .submission-filter-nav .btn-filter:hover {
+        background-color: #e0e0e0;
+    }
+
+    .submission-filter-nav .btn-filter.active {
+        background-color: #1D4C43;
+        color: white;
+    }
+
     /* Mobile Responsive Styles */
     @media (max-width: 768px) {
         .page-content {
@@ -215,7 +251,7 @@ if (!$conn) {
         .admin-data-table td {
             text-align: right;
             padding: 8px 15px;
-            padding-left: 50%;
+            padding-left: 100px;
             position: relative;
             border-bottom: 1px dashed #f0f0f0;
         }
@@ -223,15 +259,16 @@ if (!$conn) {
         .admin-data-table td:last-child {
             border-bottom: none;
             text-align: center;
+            padding-top: 15px;
         }
 
         .admin-data-table td::before {
             content: attr(data-label);
             position: absolute;
             left: 15px;
-            width: 45%;
+            width: 80px;
             text-align: left;
-            font-weight: 600;
+            font-weight: 700;
             color: #4A5568;
             font-size: 0.75rem;
         }

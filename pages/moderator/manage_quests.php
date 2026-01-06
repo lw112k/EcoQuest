@@ -112,9 +112,10 @@ if (isset($conn) && $conn) {
     @media (max-width: 768px) {
         .data-table thead { display: none; }
         .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
-        .data-table tr { margin-bottom: 15px; border: 1px solid #f0f0f0; border-radius: 8px; }
-        .data-table td { text-align: right; padding-left: 50%; position: relative; }
-        .data-table td::before { content: attr(data-label); position: absolute; left: 10px; width: calc(50% - 20px); font-weight: 600; color: #5A7F7C; text-align: left; }
+        .data-table tr { margin-bottom: 15px; border: 1px solid #DCDCDC; border-radius: 8px; padding: 10px 0; }
+        .data-table td { text-align: right; padding: 8px 12px; padding-left: 100px; position: relative; border-bottom: 1px dashed #f0f0f0; }
+        .data-table td:last-child { border-bottom: none; text-align: center; padding-top: 15px; }
+        .data-table td::before { content: attr(data-label); position: absolute; left: 15px; width: 80px; font-weight: 700; color: #4A5568; text-align: left; font-size: 0.75rem; }
     }
 </style>
 

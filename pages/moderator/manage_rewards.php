@@ -155,7 +155,7 @@ if (isset($conn) && $conn) {
         .data-table td {
             text-align: right;
             padding: 8px 12px;
-            padding-left: 50%;
+            padding-left: 100px;
             position: relative;
             border-bottom: 1px dashed #f4f7f6;
         }
@@ -163,13 +163,14 @@ if (isset($conn) && $conn) {
         .data-table td:last-child {
             border-bottom: none;
             text-align: center;
+            padding-top: 15px;
         }
 
         .data-table td::before {
             content: attr(data-label);
             position: absolute;
-            left: 12px;
-            width: 45%;
+            left: 15px;
+            width: 80px;
             text-align: left;
             font-weight: 600;
             color: #5A7F7C;
