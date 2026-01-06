@@ -109,55 +109,76 @@ if (!isset($conn) || $conn->connect_error) {
 }
 ?>
 
-<main class="edit-profile-page">
-    <div class="container">
-        <h1 class="page-title">Edit My Profile 📝</h1>
-        <p class="page-subtitle">Update your account information and password.</p>
+<main class="admin-form-container">
+    <div class="modern-card">
+        <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">Edit My Profile</h1>
+        <p style="color: #64748b; margin-bottom: 32px;">Update your account information and password</p>
 
         <?php if ($db_error): ?>
-            <div class="message error-message"><?php echo $db_error; ?></div>
+            <div class="message error-message" style="background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                <?php echo $db_error; ?>
+            </div>
         <?php endif; ?>
 
         <?php if (!empty($message)): ?>
-            <div class="message <?php echo $message['type']; ?>-message">
+            <div class="message <?php echo $message['type']; ?>-message" style="padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; <?php echo ($message['type'] === 'success') ? 'background: #dcfce7; border: 1px solid #86efac; color: #166534;' : 'background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b;'; ?>">
                 <?php echo $message['text']; ?>
             </div>
         <?php endif; ?>
 
         <?php if ($user_data): ?>
-            <div class="auth-card" style="max-width: 600px; margin: 20px auto;">
-                <form action="edit_profile.php" method="POST" class="auth-form">
-                    <h3 style="margin-top: 0;"><i class="fas fa-id-card"></i> Basic Information</h3>
-                    <div class="form-group">
+            <form action="edit_profile.php" method="POST">
+                <!-- Basic Information Section -->
+                <div>
+                    <p style="font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; margin-top: 0;">
+                        <i class="fas fa-id-card"></i> Basic Information
+                    </p>
+                    
+                    <div class="form-floating">
+                        <i class="fas fa-user"></i>
+                        <input type="text" name="username" id="username" value="<?php echo htmlspecialchars($user_data['Username']); ?>" placeholder=" " required>
                         <label for="username">Username</label>
-                        <input type="text" id="username" name="username" value="<?php echo htmlspecialchars($user_data['Username']); ?>" required>
                     </div>
-                    <div class="form-group">
+
+                    <div class="form-floating">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" name="email" id="email" value="<?php echo htmlspecialchars($user_data['Email']); ?>" placeholder=" " required>
                         <label for="email">Email Address</label>
-                        <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user_data['Email']); ?>" required>
+                    </div>
+                </div>
+
+                <!-- Password Section -->
+                <div style="background: #f1f5f9; padding: 24px; border-radius: 16px; margin: 32px 0;">
+                    <p style="font-weight: 700; font-size: 0.85rem; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 0;">
+                        <i class="fas fa-lock"></i> Change Password (Optional)
+                    </p>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">Only fill these fields if you want to change your password</p>
+                    
+                    <div class="form-floating" style="margin-bottom: 12px;">
+                        <i class="fas fa-key"></i>
+                        <input type="password" name="current_password" id="current_password" placeholder=" ">
+                        <label for="current_password">Current Password</label>
                     </div>
 
-                    <h3><i class="fas fa-lock"></i> Change Password (Optional)</h3>
-                    <p style="font-size: 0.9rem; color: #666; margin-bottom: 25px;">Only fill these fields if you want to change your password.</p>
-                    <div class="form-group">
-                        <label for="current_password">Current Password (Required if changing)</label>
-                        <input type="password" id="current_password" name="current_password" placeholder="Enter your current password">
-                    </div>
-                    <div class="form-group">
+                    <div class="form-floating" style="margin-bottom: 12px;">
+                        <i class="fas fa-fingerprint"></i>
+                        <input type="password" name="new_password" id="new_password" placeholder=" ">
                         <label for="new_password">New Password</label>
-                        <input type="password" id="new_password" name="new_password" placeholder="Leave blank if not changing">
-                    </div>
-                    <div class="form-group">
-                        <label for="confirm_password">Confirm New Password</label>
-                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Re-enter new password">
                     </div>
 
-                    <div class="form-submit">
-                        <button type="submit" class="btn-primary">Save Changes</button>
-                        <a href="profile.php" class="btn-secondary">Cancel</a>
+                    <div class="form-floating" style="margin-bottom: 0;">
+                        <i class="fas fa-check-double"></i>
+                        <input type="password" name="confirm_password" id="confirm_password" placeholder=" ">
+                        <label for="confirm_password">Confirm New Password</label>
                     </div>
-                </form>
-            </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px;">
+                    <a href="profile.php" class="btn-modern" style="background: #f1f5f9; color: #475569; text-decoration: none;">Cancel</a>
+                    <button type="submit" class="btn-modern" style="flex: 2;">Save Changes</button>
+                </div>
+            </form>
         <?php endif; ?>
     </div>
 </main>

@@ -64,7 +64,7 @@ try {
             SELECT r.Post_report_id, r.Report_time, r.Reason, u.Username 
             FROM post_report r
             JOIN user u ON r.Reported_by = u.User_id
-            WHERE r.Status = 'Pending'
+            WHERE LOWER(r.Status) = 'pending'
         ";
         $res_rep_p = $conn->query($sql_rep_p);
         if (!$res_rep_p) throw new Exception("SQL Error (Post Reports): " . $conn->error);
@@ -85,9 +85,10 @@ try {
             SELECT r.Comment_report_id, r.Report_time, r.Reason, u.Username 
             FROM comment_report r
             JOIN user u ON r.Reported_by = u.User_id
-            WHERE r.Status = 'Pending'
+            WHERE LOWER(r.Status) = 'pending'
         ";
         $res_rep_c = $conn->query($sql_rep_c);
+        if (!$res_rep_c) throw new Exception("SQL Error (Comment Reports): " . $conn->error);
         
         while ($row = $res_rep_c->fetch_assoc()) {
             $notifications[] = [
@@ -110,6 +111,7 @@ try {
                 WHERE f.Date_time > DATE_SUB(NOW(), INTERVAL 3 DAY)
             ";
             $res_feed = $conn->query($sql_feed);
+            if (!$res_feed) throw new Exception("SQL Error (Feedback): " . $conn->error);
             
             while ($row = $res_feed->fetch_assoc()) {
                 $notifications[] = [
