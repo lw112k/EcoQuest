@@ -164,7 +164,7 @@ try {
                 'title' => "Update: $status $icon",
                 'message' => $msg,
                 'time' => time_elapsed_string($row['Review_date']),
-                'link' => '/Group7_EcoQuest/pages/validate.php'
+                'link' => '/Group7_EcoQuest/pages/student/validate.php'
             ];
             
             // "Fake" unread for 24 hours
