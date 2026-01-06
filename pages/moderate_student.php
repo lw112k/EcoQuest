@@ -72,7 +72,7 @@ if (!$conn) {
                 $update_stmt->close();
 
                 // Record in student_moderation_records
-                $record_sql = "INSERT INTO student_moderation_records (Student_id, User_id, Title, Description, Duration, Date_Time) 
+                $record_sql = "INSERT INTO student_moderation_records (Student_id, User_id, Reason, Description, Duration, Date_Time) 
                                VALUES (?, ?, ?, ?, ?, NOW())";
                 $record_stmt = $conn->prepare($record_sql);
                 

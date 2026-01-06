@@ -85,7 +85,7 @@ if (!$conn) {
                             <thead>
                                 <tr>
                                     <th>DATE</th>
-                                    <th>TITLE</th>
+                                    <th>ACTION</th>
                                     <th>DESCRIPTION</th>
                                     <th>DURATION</th>
                                     <th>BY</th>
@@ -96,10 +96,10 @@ if (!$conn) {
                                     <tr>
                                         <td><?php echo date('d/m/Y', strtotime($record['Date_Time'])); ?></td>
                                         <td>
-                                            <span class="title-badge"><?php echo htmlspecialchars($record['Title']); ?></span>
+                                            <span class="title-badge"><?php echo htmlspecialchars($record['Reason']); ?></span>
                                         </td>
                                         <td><?php echo htmlspecialchars($record['Description']); ?></td>
-                                        <td><?php echo $record['Duration'] > 0 ? $record['Duration'] . ' Day' : 'N/A'; ?></td>
+                                        <td><?php echo !empty($record['Duration']) && $record['Duration'] !== '0' ? htmlspecialchars($record['Duration']) . ' Day' : 'N/A'; ?></td>
                                         <td><?php echo htmlspecialchars($record['moderator_name']); ?></td>
                                     </tr>
                                 <?php endforeach; ?>

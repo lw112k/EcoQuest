@@ -51,12 +51,12 @@ if (!$conn) {
                 'unmute_comment' => 'Unmute Comment'
             ];
             
-            $record_sql = "INSERT INTO student_moderation_records (Student_id, User_id, Title, Description, Duration, Date_Time) 
+            $record_sql = "INSERT INTO student_moderation_records (Student_id, User_id, Reason, Description, Duration, Date_Time) 
                            VALUES (?, ?, ?, ?, ?, NOW())";
             $record_stmt = $conn->prepare($record_sql);
             
             $title = $title_map[$action] ?? 'Unknown';
-            $description = ucfirst(str_replace('_', ' ', $action)) . " action";
+            $description = "N/A";
             $duration = 0;
             
             $record_stmt->bind_param('iissi', $student_id, $current_user_id, $title, $description, $duration);
