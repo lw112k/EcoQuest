@@ -167,4 +167,144 @@ if (!$conn) {
     </div>
 </main>
 
+<style>
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+        .admin-dashboard {
+            padding: 20px 10px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .subtitle {
+            font-size: 0.95rem;
+        }
+
+        .stat-cards-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .stat-card {
+            padding: 20px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+        }
+
+        .recent-submissions-section {
+            margin-top: 30px;
+        }
+
+        .submissions-table {
+            font-size: 0.85rem;
+        }
+
+        .submissions-table thead {
+            display: none;
+        }
+
+        .submissions-table tbody,
+        .submissions-table tr,
+        .submissions-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .submissions-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DCDCDC;
+            border-radius: 8px;
+            padding: 10px 0;
+        }
+
+        .submissions-table td {
+            text-align: right;
+            padding: 8px 12px;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .submissions-table td:last-child {
+            border-bottom: none;
+            text-align: center;
+        }
+
+        .submissions-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 12px;
+            width: 45%;
+            text-align: left;
+            font-weight: 600;
+            color: #4A5568;
+            font-size: 0.75rem;
+        }
+
+        .student-actions-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        .action-card {
+            padding: 20px;
+        }
+
+        .action-card h2 {
+            font-size: 1.2rem;
+        }
+
+        .action-card p {
+            font-size: 0.9rem;
+        }
+
+        .btn {
+            width: 100%;
+            text-align: center;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .page-title {
+            font-size: 1.3rem;
+        }
+
+        .stat-cards-grid {
+            gap: 10px;
+        }
+
+        .stat-card {
+            padding: 15px;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+        }
+
+        .icon {
+            font-size: 2rem;
+        }
+
+        .submissions-table td {
+            padding-left: 100%;
+        }
+
+        .action-card {
+            padding: 15px;
+        }
+
+        .action-card h2 {
+            font-size: 1rem;
+        }
+    }
+</style>
+
 <?php require_once '../../includes/footer.php'; ?>

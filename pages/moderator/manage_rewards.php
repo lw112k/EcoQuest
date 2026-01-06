@@ -119,12 +119,88 @@ if (isset($conn) && $conn) {
     .status-in-stock { color: #1D4C43; font-weight: 500; }
     .status-out-stock { color: #C0392B; font-weight: 500; }
     .small-text { font-size: 0.85rem; color: #374151; line-height: 1.4; }
+    
     @media (max-width: 768px) {
-        .data-table thead { display: none; }
-        .data-table, .data-table tbody, .data-table tr, .data-table td { display: block; width: 100%; }
-        .data-table tr { margin-bottom: 15px; border: 1px solid #DDEEE5; border-radius: 8px; }
-        .data-table td { text-align: right; padding-left: 50%; position: relative; }
-        .data-table td::before { content: attr(data-label); position: absolute; left: 15px; width: calc(50% - 30px); text-align: left; font-weight: 600; color: #5A7F7C; }
+        .admin-page {
+            padding: 20px 10px;
+        }
+
+        .admin-content-card {
+            padding: 20px;
+            border-radius: 12px;
+        }
+
+        .admin-title {
+            font-size: 1.5rem;
+        }
+
+        .data-table thead {
+            display: none;
+        }
+
+        .data-table tbody,
+        .data-table tr,
+        .data-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .data-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DDEEE5;
+            border-radius: 8px;
+            padding: 10px 0;
+        }
+
+        .data-table td {
+            text-align: right;
+            padding: 8px 12px;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f4f7f6;
+        }
+
+        .data-table td:last-child {
+            border-bottom: none;
+            text-align: center;
+        }
+
+        .data-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 12px;
+            width: 45%;
+            text-align: left;
+            font-weight: 600;
+            color: #5A7F7C;
+            font-size: 0.75rem;
+        }
+
+        .status-unlimited,
+        .status-in-stock,
+        .status-out-stock {
+            font-size: 0.8rem;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 3px 6px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .admin-title {
+            font-size: 1.3rem;
+        }
+
+        .data-table td {
+            padding-left: 100%;
+            font-size: 0.8rem;
+        }
+
+        .points-cost {
+            font-weight: 600;
+        }
     }
 </style>
 

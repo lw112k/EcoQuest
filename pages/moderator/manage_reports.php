@@ -203,6 +203,92 @@ if ($conn) {
     .badge-comment { background: #fff3e0; color: #ef6c00; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
     .btn-review { background: #71B48D; color: white; padding: 6px 12px; text-decoration: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; }
     .btn-review:hover { background: #1D4C43; }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+        .page-content {
+            padding: 20px 10px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .filter-bar {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .filter-bar .btn,
+        .filter-bar input {
+            width: 100%;
+        }
+
+        .data-table thead {
+            display: none;
+        }
+
+        .data-table tbody,
+        .data-table tr,
+        .data-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .data-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DCDCDC;
+            border-radius: 8px;
+            padding: 10px 0;
+        }
+
+        .data-table td {
+            text-align: right;
+            padding: 8px 15px;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .data-table td:last-child {
+            border-bottom: none;
+            text-align: center;
+        }
+
+        .data-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: 45%;
+            text-align: left;
+            font-weight: 600;
+            color: #4A5568;
+            font-size: 0.75rem;
+        }
+
+        .btn-review {
+            width: 100%;
+            display: block;
+            text-align: center;
+            padding: 10px 8px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .page-title {
+            font-size: 1.3rem;
+        }
+
+        .data-table td {
+            padding-left: 100%;
+        }
+
+        .badge-post,
+        .badge-comment {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+        }
+    }
 </style>
 
 <?php require_once '../../includes/footer.php'; ?>

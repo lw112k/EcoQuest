@@ -271,10 +271,46 @@ if ($conn) {
             font-size: 1.5rem;
         }
 
-        .students-table th,
+        .students-table thead {
+            display: none;
+        }
+
+        .students-table tbody,
+        .students-table tr,
         .students-table td {
-            padding: 10px 12px;
-            font-size: 0.8rem;
+            display: block;
+            width: 100%;
+        }
+
+        .students-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DCDCDC;
+            border-radius: 8px;
+            padding: 10px 0;
+        }
+
+        .students-table td {
+            text-align: right;
+            padding: 8px 15px;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .students-table td:last-child {
+            border-bottom: none;
+            text-align: center;
+        }
+
+        .students-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: 45%;
+            text-align: left;
+            font-weight: 600;
+            color: #4A5568;
+            font-size: 0.75rem;
         }
 
         .header-content {
@@ -283,6 +319,29 @@ if ($conn) {
 
         .card-header {
             padding: 15px;
+        }
+
+        .action-menu-container {
+            width: 100%;
+        }
+
+        .menu-btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .page-title {
+            font-size: 1.3rem;
+        }
+
+        .students-table td {
+            padding-left: 100%;
+        }
+
+        .menu-item {
+            font-size: 0.85rem;
+            padding: 8px 12px;
         }
     }
 </style>
@@ -314,12 +373,4 @@ if ($conn) {
     });
 </script>
 
-<?php require_once '../../includes/footer.php'; ?></script>
-<style>
-    .action-dropdown { position: relative; display: inline-block; }
-    .action-menu { display: none; position: absolute; right: 0; background: #fff; border: 1px solid #ccc; z-index: 10; width: 150px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    .action-dropdown.show .action-menu { display: block; }
-    .action-menu a { display: block; padding: 10px; text-decoration: none; color: #333; }
-    .action-menu a:hover { background: #f0f0f0; }
-</style>
 <?php require_once '../../includes/footer.php'; ?>

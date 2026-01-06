@@ -165,4 +165,103 @@ if (!$conn) {
     </div>
 </main>
 
+<style>
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+        .page-content {
+            padding: 20px 10px;
+        }
+
+        .dashboard-header {
+            margin-bottom: 20px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+        }
+
+        .submission-filter-nav {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .submission-filter-nav a {
+            width: 100%;
+            text-align: center;
+        }
+
+        .admin-data-table {
+            font-size: 0.85rem;
+        }
+
+        .admin-data-table thead {
+            display: none;
+        }
+
+        .admin-data-table tbody,
+        .admin-data-table tr,
+        .admin-data-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .admin-data-table tr {
+            margin-bottom: 15px;
+            border: 1px solid #DCDCDC;
+            border-radius: 8px;
+            padding: 10px 0;
+        }
+
+        .admin-data-table td {
+            text-align: right;
+            padding: 8px 15px;
+            padding-left: 50%;
+            position: relative;
+            border-bottom: 1px dashed #f0f0f0;
+        }
+
+        .admin-data-table td:last-child {
+            border-bottom: none;
+            text-align: center;
+        }
+
+        .admin-data-table td::before {
+            content: attr(data-label);
+            position: absolute;
+            left: 15px;
+            width: 45%;
+            text-align: left;
+            font-weight: 600;
+            color: #4A5568;
+            font-size: 0.75rem;
+        }
+
+        .btn {
+            width: 100%;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .dashboard-header h1 {
+            font-size: 1.3rem;
+        }
+
+        .admin-data-table td {
+            padding-left: 100%;
+        }
+
+        .btn {
+            font-size: 0.85rem;
+            padding: 8px 10px;
+        }
+    }
+</style>
+
 <?php require_once '../../includes/footer.php'; ?>
