@@ -212,14 +212,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="username" class="input-label">Username or Email</label>
                         <div class="input-wrapper">
                             <span class="input-icon">👤</span>
-                            <input type="text" id="identifier" name="identifier" class="input-modern" placeholder="TP123456 or TP123456@mail.apu.edu.my" required autocomplete="username">
+                            <input type="text" id="identifier" name="identifier" class="input-modern" placeholder="TP123456 or TP123456@mail.apu.edu.my" autocomplete="username">
                         </div>
                     </div>
                     <div class="input-group">
                         <label for="password" class="input-label">Password</label>
                         <div class="input-wrapper">
                             <span class="input-icon">🔒</span>
-                            <input type="password" id="password" name="password" class="input-modern" placeholder="Your secret eco-password" required autocomplete="current-password">
+                            <input type="password" id="password" name="password" class="input-modern" placeholder="Your secret eco-password" autocomplete="current-password">
                             <button type="button" class="password-toggle" onclick="togglePassword(event,'password')">🙈</button>
                         </div>
                     </div>
@@ -242,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="username" class="input-label">Username</label>
                         <div class="input-wrapper">
                             <span class="input-icon">👤</span>
-                            <input type="text" id="username" name="username" class="input-modern" placeholder="e.g., TP123456" required autocomplete="username">
+                            <input type="text" id="username" name="username" class="input-modern" placeholder="e.g., TP123456" autocomplete="username">
                         </div>
                     </div>
     
@@ -250,7 +250,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="email" class="input-label">Email</label>
                         <div class="input-wrapper">
                             <span class="input-icon">📧</span>
-                            <input type="email" id="email" name="email" class="input-modern" placeholder="Your APU email address" required autocomplete="email">
+                            <input type="email" id="email" name="email" class="input-modern" placeholder="Your APU email address" autocomplete="email">
                         </div>
                     </div>
     
@@ -258,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="reg_password" class="input-label">Password</label>
                         <div class="input-wrapper">
                             <span class="input-icon">🔒</span>
-                            <input type="password" id="reg_password" name="reg_password" class="input-modern" placeholder="Create a password (min 8 characters)" required minlength="6" autocomplete="new-password">
+                            <input type="password" id="reg_password" name="reg_password" class="input-modern" placeholder="Create a password (min 8 characters)" minlength="6" autocomplete="new-password">
                             <button type="button" class="password-toggle" onclick="togglePassword(event,'reg_password')">🙈</button>
                         </div>
                     </div>
@@ -267,7 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label for="confirm_password" class="input-label">Confirm Password</label>
                         <div class="input-wrapper">
                             <span class="input-icon">🔒</span>
-                            <input type="password" id="confirm_password" name="confirm_password" class="input-modern" placeholder="Confirm your password" required minlength="6" autocomplete="new-password">
+                            <input type="password" id="confirm_password" name="confirm_password" class="input-modern" placeholder="Confirm your password" minlength="6" autocomplete="new-password">
                             <button type="button" class="password-toggle" onclick="togglePassword(event,'confirm_password')">🙈</button>
                         </div>
                     </div>
