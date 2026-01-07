@@ -199,7 +199,7 @@ function get_status_class($status) {
                     Go to the <a href="quests.php">Quests Page</a> to start one first.
                 </div>
             <?php else: ?>
-                <form action="validate.php" method="POST" enctype="multipart/form-data" class="auth-form">
+                <form action="student/validate.php" method="POST" enctype="multipart/form-data" class="auth-form">
                     <h3><i class="fas fa-tasks"></i> Select Quest to Complete</h3>
                     <div class="form-group">
                         <label for="quest_id">Quest In Progress</label>

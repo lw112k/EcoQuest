@@ -203,7 +203,7 @@ display_page: // Goto marker for showing the page content
                         <div class="status-box active-box">
                             <h2>Submit Proof Now</h2>
                             <p>You have started this quest! Once you finish the mission, head to the submission page.</p>
-                            <a href="validate.php" class="btn-primary">Submit Quest Proof</a>
+                            <a href="student/validate.php" class="btn-primary">Submit Quest Proof</a>
                         </div>
                     <?php endif; ?>
                 </div>
