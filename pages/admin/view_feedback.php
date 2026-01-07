@@ -15,15 +15,24 @@ $error_message = null;
 $success_message = filter_input(INPUT_GET, 'success', FILTER_SANITIZE_SPECIAL_CHARS);
 $feedbacks = [];
 
-// --- TOGGLE SORTING LOGIC ---
-// Get current sort from URL, default to 'latest'
-$current_sort = filter_input(INPUT_GET, 'sort', FILTER_SANITIZE_SPECIAL_CHARS) ?: 'latest';
+// --- FILTER LOGIC ---
+// Default status is 'Unread' as requested. 'All' will show everything.
+$current_filter = filter_input(INPUT_GET, 'status', FILTER_SANITIZE_SPECIAL_CHARS) ?: 'Unread';
 
-// Determine the SQL order based on current sort
-$order_by = ($current_sort === 'oldest') ? 'ASC' : 'DESC';
-
-// Determine what the NEXT sort will be when the user clicks the header
-$next_sort = ($current_sort === 'latest') ? 'oldest' : 'latest';
+// --- UPDATE STATUS LOGIC ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status_id'])) {
+    $fb_id = filter_input(INPUT_POST, 'update_status_id', FILTER_VALIDATE_INT);
+    $new_status = filter_input(INPUT_POST, 'new_status', FILTER_SANITIZE_SPECIAL_CHARS);
+    
+    if ($fb_id && $new_status && $conn) {
+        $stmt_upd = $conn->prepare("UPDATE student_feedback SET Status = ? WHERE Student_feedback_id = ?");
+        $stmt_upd->bind_param("si", $new_status, $fb_id);
+        if ($stmt_upd->execute()) {
+            $success_message = "Status updated to $new_status.";
+        }
+        $stmt_upd->close();
+    }
+}
 
 // 2. Handle Delete Action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
@@ -44,34 +53,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
     }
 }
 
-// 3. Fetch All Feedback - Corrected column names based on screenshots
+// 3. Fetch Feedback with Filter logic
 if ($conn) {
     try {
-        // SQL using $order_by variable determined above
         $sql = "
             SELECT 
-                f.Student_feedback_id,
-                f.Title,
-                f.Description,
-                f.Date_time,
-                u.Username,
-                u.Email,
-                u.User_id,
-                s.Total_point,
-                s.Total_Exp_Point, 
-                s.Student_id,
+                f.Student_feedback_id, f.Title, f.Description, f.Date_time, f.Status,
+                u.Username, u.Email, u.User_id,
+                s.Total_point, s.Total_Exp_Point, s.Student_id,
                 (SELECT GROUP_CONCAT(b.Badge_image) FROM student_badge sb 
                  JOIN Badge b ON sb.Badge_id = b.Badge_id 
                  WHERE sb.Student_id = s.Student_id) as badges
             FROM student_feedback f
             JOIN Student s ON f.Student_id = s.Student_id
             JOIN User u ON s.User_id = u.User_id
-            ORDER BY f.Date_time $order_by
         ";
-        $result = $conn->query($sql);
-        if ($result) {
-            $feedbacks = $result->fetch_all(MYSQLI_ASSOC);
+        
+        // Add WHERE clause if not viewing 'All'
+        if ($current_filter !== 'All') {
+            $sql .= " WHERE f.Status = ?";
         }
+        
+        $sql .= " ORDER BY f.Date_time DESC";
+        
+        $stmt_load = $conn->prepare($sql);
+        if ($current_filter !== 'All') {
+            $stmt_load->bind_param("s", $current_filter);
+        }
+        
+        $stmt_load->execute();
+        $result = $stmt_load->get_result();
+        $feedbacks = $result->fetch_all(MYSQLI_ASSOC);
+        $stmt_load->close();
     } catch (Exception $e) {
         $error_message = "Failed to load feedback: " . $e->getMessage();
     }
@@ -85,6 +98,23 @@ if ($conn) {
             <p class="subtitle">Review suggestions, complaints, and ideas submitted by students.</p>
         </header>
 
+        <div class="filter-container-box">
+            <div class="filter-bar">
+                <a href="?status=All" class="btn-filter <?php echo $current_filter === 'All' ? 'active' : ''; ?>">
+                    <i class="fas fa-list-ul"></i> All
+                </a>
+                <a href="?status=Unread" class="btn-filter <?php echo $current_filter === 'Unread' ? 'active' : ''; ?>">
+                    <i class="fas fa-envelope"></i> Unread
+                </a>
+                <a href="?status=Read" class="btn-filter <?php echo $current_filter === 'Read' ? 'active' : ''; ?>">
+                    <i class="fas fa-envelope-open"></i> Read
+                </a>
+                <a href="?status=Done" class="btn-filter <?php echo $current_filter === 'Done' ? 'active' : ''; ?>">
+                    <i class="fas fa-check-circle"></i> Done
+                </a>
+            </div>
+        </div>
+
         <?php if ($success_message): ?>
             <div class="message success-message"><i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?></div>
         <?php endif; ?>
@@ -97,23 +127,20 @@ if ($conn) {
             <?php if (empty($feedbacks)): ?>
                 <div class="empty-state">
                     <i class="fas fa-inbox large-icon"></i>
-                    <h3>No Feedback Yet</h3>
-                    <p>Your students haven't submitted anything yet.</p>
+                    <h3>No Feedback Found</h3>
+                    <p>There are no feedback entries for the category: <?php echo $current_filter; ?>.</p>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
                     <table class="admin-data-table">
                         <thead>
                             <tr>
-                                <th style="width: 15%;">
-                                    <a href="?sort=<?php echo $next_sort; ?>" style="color: inherit; text-decoration: none; cursor: pointer; display: block; width: 100%;">
-                                        Date <i class="fas fa-sort"></i>
-                                    </a>
-                                </th>
-                                <th style="width: 20%;">Student</th>
-                                <th style="width: 25%;">Title</th>
-                                <th style="width: 35%;">Description</th>
-                                <th style="width: 5%; text-align: center;">Action</th>
+                                <th style="width: 12%;">Date</th>
+                                <th style="width: 18%;">Student</th>
+                                <th style="width: 20%;">Title</th>
+                                <th style="width: 25%;">Description</th>
+                                <th style="width: 15%;">Status</th>
+                                <th style="width: 10%; text-align: center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -130,11 +157,21 @@ if ($conn) {
                                         <?php echo htmlspecialchars($fb['Title']); ?>
                                     </td>
                                     <td data-label="Description">
-                                        <div style="max-height: 120px; overflow-y: auto;">
+                                        <div style="max-height: 80px; overflow-y: auto; font-size: 0.9rem;">
                                             <?php echo htmlspecialchars($fb['Description']); ?>
                                         </div>
                                     </td>
-                                    <td data-label="Action">
+                                    <td data-label="Status">
+                                        <form method="POST" id="form-status-<?php echo $fb['Student_feedback_id']; ?>">
+                                            <input type="hidden" name="update_status_id" value="<?php echo $fb['Student_feedback_id']; ?>">
+                                            <select name="new_status" class="status-select status-<?php echo strtolower($fb['Status']); ?>" onchange="this.form.submit()">
+                                                <option value="Unread" <?php echo $fb['Status'] === 'Unread' ? 'selected' : ''; ?>>Unread</option>
+                                                <option value="Read" <?php echo $fb['Status'] === 'Read' ? 'selected' : ''; ?>>Read</option>
+                                                <option value="Done" <?php echo $fb['Status'] === 'Done' ? 'selected' : ''; ?>>Done</option>
+                                            </select>
+                                        </form>
+                                    </td>
+                                    <td data-label="Action" style="text-align: center;">
                                         <form method="POST" onsubmit="return confirm('Delete this feedback?');">
                                             <input type="hidden" name="delete_id" value="<?php echo $fb['Student_feedback_id']; ?>">
                                             <button type="submit" class="btn-action-icon btn-action-delete">
@@ -184,7 +221,61 @@ if ($conn) {
 </div>
 
 <style>
-    /* Sort Dropdown removed in favor of direct header click toggle as requested */
+    /* Big Box Filter Container */
+    .filter-container-box {
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-bottom: 2rem;
+        display: inline-block;
+    }
+
+    .filter-bar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .btn-filter {
+        padding: 10px 24px;
+        background: #f1f3f5;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-filter.active {
+        background: #1D4C43;
+        color: white;
+    }
+
+    /* Color-coded Status Badges */
+    .status-select {
+        padding: 6px 12px;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        border: none;
+        cursor: pointer;
+        outline: none;
+        appearance: none; 
+        text-align: center;
+        width: 100px;
+    }
+
+    .status-unread { background-color: #ffe3e3; color: #e03131; border: 1px solid #ffc9c9; }
+    .status-read { background-color: #fff9db; color: #f08c00; border: 1px solid #fff3bf; }
+    .status-done { background-color: #e6fcf5; color: #099268; border: 1px solid #c3fae8; }
+    .status-select:hover { opacity: 0.8; }
+
+    /* Modal Styles */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center; }
     .modal-panel { background: white; width: 90%; max-width: 500px; border-radius: 15px; padding: 30px; position: relative; border: 2px solid #3498db; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
     .close-modal { position: absolute; top: 5px; right: 15px; font-size: 28px; cursor: pointer; color: #888; }
@@ -217,7 +308,8 @@ if ($conn) {
                 badgeContainer.innerHTML += `<img src="../../${img}" class="badge-img" onerror="this.src='../../assets/images/default-badge.png'">`;
             });
         } else {
-            for(let i=0; i<3; i++) {
+            // RESTORED: Logic to show 3 empty boxes if no badges exist
+             for(let i=0; i<3; i++) {
                 badgeContainer.innerHTML += `<div class="empty-badge-box"></div>`;
             }
         }
@@ -235,57 +327,3 @@ if ($conn) {
 </script>
 
 <?php require_once '../../includes/footer.php'; ?>
-
-<style>
-    /* ... existing styles ... */
-
-    @media screen and (max-width: 768px) {
-        /* Hide traditional table headers */
-        .admin-data-table thead {
-            display: none;
-        }
-
-        /* Force table elements to stack */
-        .admin-data-table,
-        .admin-data-table tbody,
-        .admin-data-table tr,
-        .admin-data-table td {
-            display: block;
-            width: 100%;
-        }
-
-        .admin-data-table tr {
-            margin-bottom: 1.5rem;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            background: #fff;
-            padding: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        .admin-data-table td {
-            text-align: left;
-            padding: 8px 10px;
-            border: none;
-            position: relative;
-        }
-
-        /* Add labels using data-attributes or manual labels */
-        .admin-data-table td::before {
-            content: attr(data-label);
-            font-weight: bold;
-            display: block;
-            color: #888;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            margin-bottom: 2px;
-        }
-
-        /* Adjust the delete button for mobile */
-        .admin-data-table td:last-child {
-            border-top: 1px solid #eee;
-            margin-top: 10px;
-            text-align: right;
-        }
-    }
-</style>

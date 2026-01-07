@@ -188,7 +188,6 @@ if ($conn) {
                             $media_path = '../../' . $clean_db_path;
                         ?>
                             <div class="proof-box" style="margin-top: 15px; text-align: center;">
-                                <p class="proof-text-label"><i class="fas fa-image"></i> Media Preview:</p>
                                 <img src="<?php echo htmlspecialchars($media_path); ?>" 
                                      alt="Submitted Proof" 
                                      class="proof-image"
