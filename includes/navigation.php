@@ -9,10 +9,17 @@ $base_path = '/Group7_EcoQuest/'; // Update this if your project folder is diffe
 
 <nav class="main-nav">
     <div class="nav-brand">
-        <a href="<?php echo $base_path; ?>pages/index.php">
+        <?php if ($user_role == 'guest'): ?>
+            <a href="<?php echo $base_path; ?>pages/index.php"> 
+            <img src="<?php echo $base_path; ?>assets/images/logo.PNG" alt="EcoQuest Logo" class="logo">
+            <span class="app-title"><?php echo $app_title; ?></span>
+            </a>
+        <?php else: ?>
+            <a href="<?php echo $base_path; ?>pages/<?php echo $user_role; ?>/dashboard.php">
             <img src="<?php echo $base_path; ?>assets/images/logo.PNG" alt="EcoQuest Logo" class="logo">
             <span class="app-title"><?php echo $app_title; ?></span>
         </a>
+        <?php endif; ?>
     </div>
 
     <div class="nav-links" id="navLinks">
