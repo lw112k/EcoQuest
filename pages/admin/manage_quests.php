@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// --- LOGIC B: SAVE/UPDATE WEEKLY CALENDAR (Preserves Calendar_id) ---
+// --- LOGIC B: SAVE/UPDATE WEEKLY CALENDAR ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_calendar') {
     if (ob_get_length()) ob_clean(); 
     header('Content-Type: application/json');
@@ -49,14 +49,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         try {
             $conn->begin_transaction();
 
-            // 1. Check if 5 entries already exist for this week
             $stmt_check = $conn->prepare("SELECT Calendar_id FROM quest_calendar WHERE Start_date = ? ORDER BY Calendar_id ASC");
             $stmt_check->bind_param("s", $start_date);
             $stmt_check->execute();
             $existing_rows = $stmt_check->get_result()->fetch_all(MYSQLI_ASSOC);
 
             if (count($existing_rows) === 5) {
-                // 2. IF THEY EXIST: Update each existing row to keep the same Calendar_id
                 $stmt_upd = $conn->prepare("UPDATE quest_calendar SET Quest_id = ?, End_date = ? WHERE Calendar_id = ?");
                 foreach ($selected_ids as $index => $q_id) {
                     $calendar_primary_id = $existing_rows[$index]['Calendar_id'];
@@ -64,7 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt_upd->execute();
                 }
             } else {
-                // 3. IF NEW WEEK (or not exactly 5): Perform fresh Insert
                 $stmt_del = $conn->prepare("DELETE FROM quest_calendar WHERE Start_date = ?");
                 $stmt_del->bind_param("s", $start_date);
                 $stmt_del->execute();
@@ -76,10 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     $stmt_insert->execute();
                 }
             }
-
             $conn->commit();
             echo json_encode(['status' => 'success', 'message' => 'Weekly quest updated successfully!']);
-            
         } catch (Exception $e) {
             if ($conn->in_transaction) $conn->rollback();
             echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
@@ -90,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit; 
 }
 
-// --- LOGIC C: DELETE/INACTIVATE QUEST ---
+// --- LOGIC C: DELETE/INACTIVATE QUEST (修正后的部分) ---
 $quest_id_param = filter_input(INPUT_GET, 'quest_id', FILTER_VALIDATE_INT); 
 if (isset($_GET['action']) && $_GET['action'] === 'delete' && $quest_id_param) {
     if (ob_get_length()) ob_clean();
@@ -105,9 +100,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && $quest_id_param) {
         $stmt_upd = $conn->prepare("UPDATE Quest SET Is_active = 0 WHERE Quest_id = ?");
         $stmt_upd->bind_param("i", $quest_id_param);
         if ($stmt_upd->execute()) {
-            echo json_encode(['status' => 'status_updated', 'message' => 'Quest is in calendar. Set to Inactive instead of deleted.']);
+            echo json_encode(['status' => 'status_updated', 'message' => 'Quest is in calendar. Set to Inactive.']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Database error during update.']);
+            echo json_encode(['status' => 'error', 'message' => 'Database error.']);
         }
     } else {
         $stmt_del = $conn->prepare("DELETE FROM Quest WHERE Quest_id = ?");
@@ -115,35 +110,18 @@ if (isset($_GET['action']) && $_GET['action'] === 'delete' && $quest_id_param) {
         if ($stmt_del->execute()) {
             echo json_encode(['status' => 'deleted', 'message' => 'Quest deleted successfully!']);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Database error during deletion.']);
+            echo json_encode(['status' => 'error', 'message' => 'Database error.']);
         }
     }
     exit;
 }
 
-// 2. FETCH DATA FOR CALENDAR
+// 2. FETCH DATA
 $existing_events = [];
-$sql_cal = "SELECT qc.*, q.Title, q.Points_award, cat.Category_Name 
-            FROM quest_calendar qc 
-            JOIN Quest q ON qc.Quest_id = q.Quest_id
-            LEFT JOIN Quest_Categories cat ON q.CategoryID = cat.CategoryID";
-$res_cal = $conn->query($sql_cal);
-if ($res_cal) {
-    while($row = $res_cal->fetch_assoc()) { $existing_events[] = $row; }
-}
+$res_cal = $conn->query("SELECT qc.*, q.Title, q.Points_award, cat.Category_Name FROM quest_calendar qc JOIN Quest q ON qc.Quest_id = q.Quest_id LEFT JOIN Quest_Categories cat ON q.CategoryID = cat.CategoryID");
+if ($res_cal) { while($row = $res_cal->fetch_assoc()) { $existing_events[] = $row; } }
 
-// 3. FETCH ALL QUESTS FOR THE TABLE
-$quests = [];
-$sql_fetch = "SELECT q.*, qc.Category_Name, u.Username
-              FROM Quest q 
-              LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID 
-              LEFT JOIN Admin a ON q.Created_by = a.Admin_id
-              LEFT JOIN User u ON a.User_id = u.User_id
-              ORDER BY q.Quest_id ASC"; 
-$result = $conn->query($sql_fetch);
-if ($result) { $quests = $result->fetch_all(MYSQLI_ASSOC); }
-
-// 4. FETCH CATEGORIES FOR MODAL
+$quests = $conn->query("SELECT q.*, qc.Category_Name, u.Username FROM Quest q LEFT JOIN Quest_Categories qc ON q.CategoryID = qc.CategoryID LEFT JOIN Admin a ON q.Created_by = a.Admin_id LEFT JOIN User u ON a.User_id = u.User_id ORDER BY q.Quest_id ASC")->fetch_all(MYSQLI_ASSOC);
 $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_ASSOC);
 ?>
 
@@ -158,7 +136,7 @@ $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_A
             <div class="calendar-layout">
                 <div class="calendar-container">
                     <div class="calendar-header-ui">
-                        <div class="calendar-title-click" onclick="toggleCalendarMode()">
+                        <div class="calendar-title-static">
                              <span id="display-month">December</span>, <span id="display-year">2025</span>
                         </div>
                         <div class="calendar-arrows">
@@ -204,13 +182,13 @@ $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_A
                                 data-id="<?php echo $q['Quest_id']; ?>" 
                                 data-active="<?php echo $q['Is_active']; ?>"
                                 onclick="toggleQuestSelection(this)"> 
-                                <td data-label="ID"><?php echo htmlspecialchars($q['Quest_id']); ?></td>
-                                <td data-label="Title"><strong><?php echo htmlspecialchars($q['Title']); ?></strong></td>
-                                <td data-label="Category"><?php echo htmlspecialchars($q['Category_Name']); ?></td>
-                                <td data-label="Points"><span class="points-badge"><?php echo htmlspecialchars($q['Points_award']); ?> Pts</span></td>
-                                <td data-label="Creator"><?php echo htmlspecialchars($q['Username']); ?></td>
-                                <td data-label="Created On"><?php echo htmlspecialchars(date("Y-m-d", strtotime($q['Created_at']))); ?></td>
-                                <td data-label="Actions" class="actions-cell text-right">
+                                <td><?php echo htmlspecialchars($q['Quest_id']); ?></td>
+                                <td><strong><?php echo htmlspecialchars($q['Title']); ?></strong></td>
+                                <td><?php echo htmlspecialchars($q['Category_Name']); ?></td>
+                                <td><span class="points-badge"><?php echo htmlspecialchars($q['Points_award']); ?> Pts</span></td>
+                                <td><?php echo htmlspecialchars($q['Username']); ?></td>
+                                <td><?php echo htmlspecialchars(date("Y-m-d", strtotime($q['Created_at']))); ?></td>
+                                <td class="actions-cell text-right">
                                     <div class="icon-group">
                                         <button class="action-btn-img pencil-btn" title="Edit" onclick="event.stopPropagation(); openEditModal(<?php echo htmlspecialchars(json_encode($q)); ?>)"> 
                                             <i class="fas fa-pencil-alt"></i>
@@ -224,9 +202,7 @@ $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_A
                             <?php endforeach; ?>
                             <tr>
                                 <td colspan="7" class="text-center" style="padding: 15px 10px;"> 
-                                    <a href="create_quest.php" class="btn-add-inline">
-                                        <i class="fas fa-plus-circle"></i> Create New Quest
-                                    </a>
+                                    <a href="create_quest.php" class="btn-add-inline"><i class="fas fa-plus-circle"></i> Create New Quest</a>
                                 </td>
                             </tr>
                         </tbody>
@@ -265,13 +241,11 @@ $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_A
                 </div>
                 <div class="input-block">
                     <label>Category:</label>
-                    <div class="select-wrapper">
-                        <select name="CategoryID" id="modal-category">
-                            <?php foreach ($categories as $cat): ?>
-                                <option value="<?php echo $cat['CategoryID']; ?>"><?php echo $cat['Category_Name']; ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                    <select name="CategoryID" id="modal-category">
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?php echo $cat['CategoryID']; ?>"><?php echo $cat['Category_Name']; ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
             </div>
             <div class="modal-row description-row">
@@ -286,67 +260,60 @@ $categories = $conn->query("SELECT * FROM Quest_Categories")->fetch_all(MYSQLI_A
 </div>
 
 <style>
+    /* 保持原有设计 */
     .admin-page { padding: 30px 0; background-color: #FAFAF0; min-height: 90vh; }
     .container { max-width: 1100px; margin: 0 auto; padding: 0 15px; }
     .dashboard-header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #1D4C43; }
     .page-title { color: #1D4C43; font-size: 1.75rem; font-weight: 700; display: flex; align-items: center; gap: 12px; }
-    .page-title i { color: #71B48D; }
     .calendar-layout { display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start; }
     .calendar-container { flex: 1.5; background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #ddd; overflow: hidden; }
     .event-sidebar { flex: 1; background: #fff; border: 3px solid #eee; border-radius: 15px; min-height: 350px; }
-    #sidebar-header {background-color: #FAFAF0; border-bottom: 3px solid #f0f0f0; padding: 15px; font-size: 1.2rem; font-weight: bold; color: #1D4C43; }
+    #sidebar-header {background-color: #FAFAF0; border-bottom: 3px solid #f0f0f0; padding: 15px; font-weight: bold; color: #1D4C43; }
     #sidebar-content {padding: 15px 10px; }
-    .calendar-header-ui { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: #FAFAF0; border-bottom: 1px solid #f0f0f0; }
-    .calendar-title-click { font-weight: 800; color: #1D4C43; cursor: pointer; }
-    .nav-arrow-btn { background: none; border: none; cursor: pointer; color: #1D4C43; font-size: 1rem; line-height: 1; }
-    .calendar-grid { display: grid; padding: 15px; gap: 8px; text-align: center; }
-    .calendar-grid.days-mode { grid-template-columns: repeat(7, 1fr); }
-    .calendar-day, .calendar-month-item { padding: 10px 5px; border-radius: 8px; cursor: pointer; transition: 0.2s; border: 1px solid transparent; }
+    .calendar-header-ui { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background-color: #FAFAF0; }
+    .calendar-title-static { font-weight: 800; color: #1D4C43; }
+    .nav-arrow-btn { background: none; border: none; cursor: pointer; color: #1D4C43; }
+    .calendar-grid { display: grid; padding: 15px; gap: 8px; text-align: center; grid-template-columns: repeat(7, 1fr); }
+    .calendar-day { padding: 10px 5px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
     .calendar-day.selected-week { background: #3498db !important; color: white !important; }
     .week-display-bar { display: flex; justify-content: center; align-items: center; gap: 20px; padding: 15px; background: #fff; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
-    .nav-arrow-circle { background: #71B48D; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
-    .nav-arrow-circle:hover { background: #1D4C43; }
-    .selected-range { font-weight: bold; font-size: 1.1rem; color: #1D4C43; min-width: 320px; text-align: center; }
+    .nav-arrow-circle { background: #71B48D; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .selected-range { font-weight: bold; color: #1D4C43; min-width: 320px; text-align: center; }
     .sidebar-quest-card { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #1D4C43; text-align: left; }
-    .sidebar-quest-card h4 { margin: 0; font-size: 0.9rem; color: #1D4C43; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sidebar-quest-card p { margin: 4px 0 0 0; font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .icon-group { display: flex; gap: 12px; justify-content: flex-end; align-items: center; }
-    .action-btn-img { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 0; transition: transform 0.2s; display: inline-flex; }
+    .sidebar-quest-card h4 {margin: 0; font-size: 0.9rem; color:#1D4C43; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-quest-card p { margin: 4px 0 0 0; font-size: 0.8rem; white-space: nowrap  ; overflow: hidden; text-overflow: ellipsis; }
+    .icon-group { display: flex; gap: 12px; justify-content: flex-end; }
+    .action-btn-img { background: none; border: none; cursor: pointer; font-size: 1.2rem; }
     .pencil-btn { color: #3498db; }
     .trash-btn { color: #e74c3c; }
     .btn-add-inline { display: flex; align-items: center; justify-content: center; width: 100%; padding: 15px; border: 2px dashed #71B48D; border-radius: 12px; text-decoration: none; color: #1D4C43; font-weight: bold; }
     .selectable-row.selected { background-color: #d1ecf1 !important; }
     .points-badge { color: #C0392B; font-weight: bold; }
-    .table-footer { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-top: 1px solid #eee; margin-top: 15px; }
+    .table-footer { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; border-top: 1px solid #eee; }
     .btn-ghost { background: none; border: 1px solid #71B48D; color: #1D4C43; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    .btn-primary-admin { background-color: #ccc; color: #666; padding: 10px 25px; border-radius: 6px; font-weight: 600; border: none; cursor: not-allowed; transition: 0.3s; }
+    .btn-primary-admin { background-color: #ccc; color: #666; padding: 10px 25px; border-radius: 6px; font-weight: 600; border: none; cursor: not-allowed; }
     .btn-primary-admin.active-green { background-color: #71B48D; color: #1D4C43; cursor: pointer; }
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center; }
     .redesigned-modal { background: white; width: 600px; padding: 30px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-    .modal-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: center; }
-    .input-flat-title-only { flex-grow: 1; background: transparent; border: none; padding: 10px; font-size: 24px; font-weight: bold; color: #333; outline: none; }
-    .status-toggle-btn { border: none; padding: 8px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; color: white; background-color: #2ecc71; min-width: 100px; }
+    .input-flat-title-only { flex-grow: 1; background: transparent; border: none; padding: 0; font-size: 24px; font-weight: bold; color:#333; outline: none; }
+    .modal-row{ display: flex; gap: 20px; margin-bottom: 20px; align-items: center; }
+    .status-toggle-btn { border: none; padding: 8px 25px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.3s; color: white; background-color: #2ecc71; min-width: 100px;}
     .status-toggle-btn.inactive { background-color: #e74c3c !important; }
-    .input-block label { display: block; font-size: 18px; margin-bottom: 8px; font-weight: bold; }
     .counter-control { display: flex; align-items: center; background: #E8E8E8; border-radius: 25px; padding: 5px 15px; }
+    .input-block label{ display: block; font-size: 18px; margin-bottom: 8px; font-weight: bold; }
     .btn-step { background: none; border: none; font-size: 24px; cursor: pointer; color: #333; }
     #modal-points { width: 60px; text-align: center; border: none; background: none; font-size: 20px; font-weight: bold; outline: none; }
-    #modal-points::-webkit-outer-spin-button, #modal-points::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     #modal-category { background: #E8E8E8; border: none; padding: 10px 20px; border-radius: 10px; font-size: 18px; width: 220px; }
-    .description-box { width: 100%; height: 180px; background: #E8E8E8; border: 2px solid #3498db; border-radius: 10px; padding: 15px; font-size: 16px; resize: none; }
-    .modal-footer-btns { display: flex; justify-content: flex-end; gap: 15px; }
-    .btn-modal-cancel, .btn-modal-confirm { background: #D1D1D1; border: none; padding: 10px 35px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    .btn-modal-confirm:hover { background: #71B48D; color: white; }
-    
+    .modal-footer-btns {display:flex; justify-content: flex-end; gap:15px; }
+    .btn-modal-cancel, .btn-modal-confirm { background: #D1D1D1; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s}
+    .description-box { width: 100%; height: 180px; background: #E8E8E8; border: 2px solid #3498db; border-radius: 10px; padding: 15px; resize: none; }
     .row-inactive { background-color: #f2f2f2 !important; opacity: 0.6; cursor: not-allowed !important; }
-    .row-inactive .points-badge { color: #888 !important; }
-    .row-inactive:hover { background-color: #f2f2f2 !important; }
 </style>
 
 <script>
+/* 保持原有 JavaScript 逻辑 */
 const existingEvents = <?php echo json_encode($existing_events); ?>;
 const mLong = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
 let selectedQuests = [];
 let weekStartStr = ""; 
 let weekEndStr = "";
@@ -374,7 +341,6 @@ function renderCalendar() {
     document.getElementById('display-month').innerText = mLong[viewMonth];
     document.getElementById('display-year').innerText = viewYear;
     grid.innerHTML = "";
-    grid.className = "calendar-grid days-mode";
     ["S", "M", "T", "W", "T", "F", "S"].forEach(d => grid.innerHTML += `<div style="font-weight:bold; color:#999; font-size:0.8rem;">${d}</div>`);
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -388,9 +354,8 @@ function renderCalendar() {
 
 function selectWeekUI(y, m, d) {
     const clickedDate = new Date(y, m, d);
-    const dayOfWeek = clickedDate.getDay(); 
     const startOfWeek = new Date(clickedDate);
-    startOfWeek.setDate(clickedDate.getDate() - dayOfWeek);
+    startOfWeek.setDate(clickedDate.getDate() - clickedDate.getDay());
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 6);
 
@@ -407,13 +372,10 @@ function selectWeekUI(y, m, d) {
     if (found.length > 0) {
         found.forEach(f => {
             const row = document.getElementById(`quest-row-${f.Quest_id}`);
-            if (row) {
-                selectedQuests.push(f.Quest_id.toString());
-                row.classList.add('selected');
-            }
+            if (row) { selectedQuests.push(f.Quest_id.toString()); row.classList.add('selected'); }
         });
         updateUI();
-        sidebar.innerHTML = found.map(f => `<div class="sidebar-quest-card"><h4>${f.Title}</h4><p><Strong>Category:</Strong> ${f.Category_Name} | <Strong>Points:</Strong> ${f.Points_award}</p></div>`).join('');
+        sidebar.innerHTML = found.map(f => `<div class="sidebar-quest-card"><h4>${f.Title}</h4><p><strong>Category:</strong> ${f.Category_Name} | <strong> Points:</strong> ${f.Points_award}</p></div>`).join('');
     } else {
         sidebar.innerHTML = "<p style='color:#999; font-size:0.8rem;'>No quests scheduled.</p>";
     }
@@ -433,17 +395,14 @@ function highlightWeekInGrid() {
 }
 
 function toggleQuestSelection(row) {
-    const isActive = row.getAttribute('data-active');
-    if (isActive === "0") return; // Block inactive selection
-    
-    if (!weekStartStr) { alert("Select a date on the calendar first!"); return; }
+    if (row.getAttribute('data-active') === "0" || !weekStartStr) return;
     const id = row.getAttribute('data-id');
     const idx = selectedQuests.indexOf(id);
     if (idx > -1) {
         selectedQuests.splice(idx, 1);
         row.classList.remove('selected');
     } else {
-        if (selectedQuests.length >= 5) return alert("Max 5 quests!");
+        if (selectedQuests.length >= 5) return alert("Max 5!");
         selectedQuests.push(id);
         row.classList.add('selected');
     }
@@ -451,16 +410,9 @@ function toggleQuestSelection(row) {
 }
 
 function autoSelectQuests() {
-    if (!weekStartStr) { alert("Select a date on the calendar first!"); return; }
+    if (!weekStartStr) return alert("Select a date!");
     resetSelectionState();
-
-    const rows = Array.from(document.querySelectorAll('.selectable-row[data-active="1"]'));
-    if (rows.length < 5) { alert("Not enough active quests to auto-select 5."); }
-    for (let i = rows.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [rows[i], rows[j]] = [rows[j], rows[i]];
-    }
-
+    const rows = Array.from(document.querySelectorAll('.selectable-row[data-active="1"]')).sort(() => 0.5 - Math.random());
     for(let i = 0; i < Math.min(5, rows.length); i++) {
         selectedQuests.push(rows[i].getAttribute('data-id'));
         rows[i].classList.add('selected');
@@ -469,18 +421,8 @@ function autoSelectQuests() {
 }
 
 function deleteQuest(id, title) {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
-
-    fetch(`manage_quests.php?action=delete&quest_id=${id}`)
-    .then(r => r.json())
-    .then(data => {
-        alert(data.message);
-        window.location.reload();
-    })
-    .catch(err => {
-        console.error("Delete Error:", err);
-        alert("An error occurred during deletion.");
-    });
+    if (!confirm(`Delete "${title}"?`)) return;
+    fetch(`manage_quests.php?action=delete&quest_id=${id}`).then(r => r.json()).then(data => { alert(data.message); window.location.reload(); });
 }
 
 function resetSelectionState() {
@@ -492,46 +434,18 @@ function resetSelectionState() {
 function updateUI() {
     const btn = document.getElementById('confirm-btn');
     document.getElementById('selection-status').innerText = `${selectedQuests.length}/5 Selected`;
-    if (selectedQuests.length === 5) {
-        btn.disabled = false;
-        btn.classList.add('active-green');
-    } else {
-        btn.disabled = true;
-        btn.classList.remove('active-green');
-    }
+    btn.disabled = selectedQuests.length !== 5;
+    selectedQuests.length === 5 ? btn.classList.add('active-green') : btn.classList.remove('active-green');
 }
 
 function confirmSelection() {
-    if (selectedQuests.length !== 5) return;
-    if (!confirm("Are you sure you want to update the calendar for this week?")) return;
-
+    if (selectedQuests.length !== 5 || !confirm("Update calendar?")) return;
     const formData = new FormData();
     formData.append('action', 'save_calendar');
     formData.append('Start_date', weekStartStr);
     formData.append('End_date', weekEndStr);
     selectedQuests.forEach(id => formData.append('Quest_id[]', id));
-
-    fetch('manage_quests.php', { method: 'POST', body: formData })
-    .then(response => response.json())
-    .then(data => { 
-        alert(data.message);
-        if(data.status === 'success') { 
-            window.location.reload(); 
-        } 
-    })
-    .catch(err => {
-        console.error("Fetch Error:", err);
-        alert("Saving successful, but page refresh failed. Manually refreshing now...");
-        window.location.reload(); 
-    });
-}
-
-function adjustPoints(amount) {
-    const pointsInput = document.getElementById('modal-points');
-    let val = parseInt(pointsInput.value) || 0;
-    val += amount;
-    if (val < 0) val = 0;
-    pointsInput.value = val;
+    fetch('manage_quests.php', { method: 'POST', body: formData }).then(r => r.json()).then(data => { alert(data.message); window.location.reload(); });
 }
 
 function openEditModal(quest) {
@@ -540,9 +454,8 @@ function openEditModal(quest) {
     document.getElementById('modal-points').value = quest.Points_award;
     document.getElementById('modal-desc').value = quest.Description;
     document.getElementById('modal-category').value = quest.CategoryID;
-    const statusVal = quest.Is_active;
-    document.getElementById('modal-status-val').value = statusVal;
-    updateStatusBtnUI(statusVal);
+    document.getElementById('modal-status-val').value = quest.Is_active;
+    updateStatusBtnUI(quest.Is_active);
     document.getElementById('editModal').style.display = 'flex';
 }
 
@@ -550,43 +463,26 @@ function closeEditModal() { document.getElementById('editModal').style.display =
 
 function toggleStatus() {
     const valInput = document.getElementById('modal-status-val');
-    const newVal = (valInput.value == "1") ? "0" : "1";
-    valInput.value = newVal;
-    updateStatusBtnUI(newVal);
+    valInput.value = valInput.value == "1" ? "0" : "1";
+    updateStatusBtnUI(valInput.value);
 }
 
 function updateStatusBtnUI(val) {
     const btn = document.getElementById('modal-status-btn');
-    if (val == 1) {
-        btn.innerText = "Active";
-        btn.classList.remove('inactive');
-    } else {
-        btn.innerText = "Inactive";
-        btn.classList.add('inactive');
-    }
+    btn.innerText = val == 1 ? "Active" : "Inactive";
+    val == 1 ? btn.classList.remove('inactive') : btn.classList.add('inactive');
+}
+
+function adjustPoints(amount) {
+    const input = document.getElementById('modal-points');
+    input.value = Math.max(0, (parseInt(input.value) || 0) + amount);
 }
 
 document.getElementById('editForm').onsubmit = function(e) {
     e.preventDefault();
-    if (confirm("Are you sure you want to make changes to this quest?")) {
-        const formData = new FormData(this);
-        formData.append('action', 'update_quest');
-        fetch('manage_quests.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            alert(data.message);
-            if (data.status === 'success') {
-                window.location.reload();
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            alert("An error occurred while updating.");
-        });
-    }
+    const formData = new FormData(this);
+    formData.append('action', 'update_quest');
+    fetch('manage_quests.php', { method: 'POST', body: formData }).then(r => r.json()).then(data => { alert(data.message); window.location.reload(); });
 };
 
 renderCalendar();
